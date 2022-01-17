@@ -1,0 +1,21 @@
+kan je een AXI4 Domain maken zoals er ook een Signal domain is? zie Signal/Internal.hs en hoe de KnownDomain en KnownConf gedaan zijn. Dan ben je ook van die gigantische datatypes af met superveel type variables.
+
+###
+
+Waarom deden we ook alweer type injectivity?
+- type inference
+
+Hoe zit het met "dropped" transactions? Als de master minder vaak ready is dan dat ie AR drivet kan je dingen missen toch?
+- je dropped ze niet, je zet je ready voor nieuwe transacties op false (backpressure geven), precies wat ik eigenlijk al deed in het example voor axi4lite.
+
+Waar zijn strict tuples voor? Performance.
+
+Samen naar TwoWayDf kijken: werkt inderdaad niet zo lekker op die manier
+
+Haddock?
+- bouwen doet de CI
+- of doe cabal haddock, dat werkt nu.
+
+###
+
+een FIFO kan gemaakt worden die transacties vasthoudt en doorgeeft, en dan in AXI aangeeft of ie vol zit en zo. Daarna kunnen daar Hedgehog tests voor gebouwd worden: de pure versie van een FIFO is namelijk simpelweg `id`.
