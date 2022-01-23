@@ -19,3 +19,8 @@ Haddock?
 ###
 
 een FIFO kan gemaakt worden die transacties vasthoudt en doorgeeft, en dan in AXI aangeeft of ie vol zit en zo. Daarna kunnen daar Hedgehog tests voor gebouwd worden: de pure versie van een FIFO is namelijk simpelweg `id`.
+
+###
+
+Gaan we de channels instances maken van Df?
+  simulate voor ReadData gaat de verkeerde kant op

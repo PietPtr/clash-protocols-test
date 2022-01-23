@@ -1,5 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
 module FIFO where
-
 
 import Clash.Prelude hiding (zip, undefined)
 import Prelude hiding ((!!), replicate)
@@ -23,15 +23,19 @@ testSigs = (m2s, s2m)
   where
     m2s = [
         noAddr,
-        noAddr,
         addr 0,
-        noAddr,
-        noAddr,
         addr 1,
         addr 2,
-        addr 3
-      ]
-    
+        addr 3,
+        noAddr,
+        noAddr,
+        noAddr,
+        noAddr,
+        noAddr,
+        noAddr,
+        noAddr
+      ] P.++ P.repeat noAddr
+
     noAddr = M2S_NoWriteAddress
     addr n = M2S_WriteAddress {
         _awaddr = n,
@@ -42,73 +46,94 @@ testSigs = (m2s, s2m)
         r False,
         r False,
         r False,
-        r False 
+        r False,
+        r False,
+        r False,
+        r False,
+        r False,
+        r False,
+        r False,
+        r False,
+        r True,
+        r True,
+        r True,
+        r True,
+        r True,
+        r True,
+        r True,
+        r True,
+        r True,
+        r True,
+        r False,
+        r False,
+        r False
       ]
-    
+
     r b = S2M_WriteAddress { _awready = b }
 
 simSignals = simulate @System top (zip (fst testSigs) (snd testSigs))
   where
-    top = bundle . axiFIFOWrapper . unbundle
+    top = bundle . (toSignals axiFIFOCircuit) . unbundle
 
 
-axiFIFOCircuit :: HiddenClockResetEnable dom
-  => Circuit (Axi4LiteWA dom ('AddrWidth 4)) (Axi4LiteWA dom ('AddrWidth 4))
-axiFIFOCircuit = fromSignals axiFIFOWrapper
 
-axiFIFOWrapper :: HiddenClockResetEnable dom
-  => (Signal dom (M2S_WriteAddress ('AddrWidth 4)), Signal dom S2M_WriteAddress)
-  -> (Signal dom S2M_WriteAddress, Signal dom (M2S_WriteAddress ('AddrWidth 4)))
-axiFIFOWrapper wrapperIn = unbundle wrapperOut
+axiFIFOlhs :: HiddenClockResetEnable dom =>
+  Signal dom (M2S_WriteAddress ('AddrWidth 4), Bool) ->
+  Signal dom (S2M_WriteAddress, Bool, Elm)
+axiFIFOlhs inp = outp
   where
-    (wrapperOut, fifoIn) = unbundle $ machine $ bundle (bundle wrapperIn, fifoOut)
-    fifoOut = fifoL fifoIn
+    (lhsData, full) = unbundle inp
+    outp = bundle (lhsReady, write, dataInFifo)
+    lhsReady = (S2M_WriteAddress . not) <$> full
+    (write, dataInFifo) = unbundle $ fifoWriteSigs <$> full <*> lhsData
 
-    machine = mealy axiFIFOWrapperMealy ()
+    fifoWriteSigs full lhsData = if full
+      then (False, M2S_NoWriteAddress)
+      else case lhsData of
+        M2S_NoWriteAddress -> (False, M2S_NoWriteAddress)
+        w@(M2S_WriteAddress {}) -> (True, w)
 
-type AxiFIFOWrapperState = ()
-type AxiFIFOWrapperInput = (M2S_WriteAddress ('AddrWidth 4), S2M_WriteAddress)
-type AxiFIFOWrapperOutput = (S2M_WriteAddress, M2S_WriteAddress ('AddrWidth 4))
-
-axiFIFOWrapperMealy :: AxiFIFOWrapperState -> (AxiFIFOWrapperInput, (Bool, Bool, Elm)) 
-  -> (AxiFIFOWrapperState, (AxiFIFOWrapperOutput, (Elm, Bool, Bool)))
-axiFIFOWrapperMealy state ((lhsData, rhsReady), (full, empty, dataOut)) = 
-  (state', ((lhsReady, rhsData), (dataIn, write, read)))
+axiFIFOrhs :: HiddenClockResetEnable dom =>
+  Signal dom (S2M_WriteAddress, Bool, Elm) ->
+  Signal dom (M2S_WriteAddress ('AddrWidth 4), Bool)
+axiFIFOrhs inp = outp
   where
-    state' = state
+    (rhsReady, empty, dataOutFifo) = unbundle inp
+    outp = bundle (rhsData, read)
+    rhsData = dataSig <$> read <*> dataOutFifo
+    read = readSig <$> rhsReady <*> empty
 
-    lhsReady = S2M_WriteAddress {
-      _awready = writeReady
-    }
-    writeReady = not full -- TODO: check reset behaviour
+    -- Might be neater with the toBool function of a Df instance
+    readSig (S2M_WriteAddress {..}) empty = _awready && not empty
+    dataSig read dataOutFifo = if read
+      then dataOutFifo
+      else M2S_NoWriteAddress
 
-    rhsData = if empty
-      then M2S_NoWriteAddress
-      else dataOut
-
-
-    dataIn = lhsData
-    write = lhsValid && writeReady -- = handshake, data is valid and we are ready to write
-    
-    lhsValid = case lhsData of
-      M2S_NoWriteAddress -> False
-      M2S_WriteAddress {} -> True
-
-    read = not empty && rhsReadyBool -- kort door de bocht?
-
-    rhsReadyBool = _awready rhsReady
-
+axiFIFOCircuit :: HiddenClockResetEnable dom =>
+  Circuit (Axi4LiteWA dom ('AddrWidth 4)) (Axi4LiteWA dom ('AddrWidth 4))
+axiFIFOCircuit = Circuit go
+  where
+    go (lhsData, rhsReady) = (lhsReady, rhsData)
+      where
+        (lhsReady, write, dataInFifo) = unbundle $ axiFIFOlhs $ bundle (lhsData, full)
+        (rhsData, read) = unbundle $ axiFIFOrhs $ bundle (rhsReady, empty, dataOutFifo)
+        (full, empty, dataOutFifo) = unbundle $ fifoL $ bundle (dataInFifo, write, read)
 
 type Elm  = M2S_WriteAddress ('AddrWidth 4)
 type Pntr n = Unsigned (n + 1)
 
+-- shorthand for testing
+m2swa addr = M2S_WriteAddress {
+        _awaddr = addr,
+        _awprot = (NotPrivileged, NonSecure, Data)
+      }
 
 fifo :: forall n e . (KnownNat n, KnownNat (n+1), KnownNat (n+1+1)
-                     ,KnownNat (n+1+2), KnownNat (2^n))
+                     ,KnownNat (n+1+2), KnownNat (2^n), Show e)
      => (Pntr n, Pntr n, Vec (2^n) e)
      -> (e, Bool, Bool)
      -> ((Pntr n,Pntr n,Vec (2^n) e),(Bool,Bool,e))
-fifo (rpntr, wpntr, elms) (datain,wrt,rd) = ((rpntr',wpntr',elms'),(full,empty,dataout))
+fifo (rpntr, wpntr, elms) (datain,wrt,rd) = trace (show $ (rpntr, wpntr, full, empty)) ((rpntr',wpntr',elms'),(full,empty,dataout))
   where
     wpntr' | wrt       = wpntr + 1
            | otherwise = wpntr
@@ -133,3 +158,63 @@ fifo (rpntr, wpntr, elms) (datain,wrt,rd) = ((rpntr',wpntr',elms'),(full,empty,d
 fifoL :: HiddenClockResetEnable dom =>
   Signal dom (Elm,Bool,Bool) -> Signal dom (Bool,Bool,Elm)
 fifoL = fifo `mealy` (0,0,replicate d4 M2S_NoWriteAddress)
+
+data FIFOCommand e
+  = Nop
+  | Write e
+  | Read
+  deriving (Show, Generic, NFDataX)
+
+data FIFOStatus
+  = Full
+  | Empty
+  | NonEmpty
+  deriving (Show, Generic, NFDataX)
+
+strictFIFO :: forall n e . (KnownNat n, KnownNat (n+1), KnownNat (n+1+1)
+                     ,KnownNat (n+1+2), KnownNat (2^n))
+      => (Pntr n, Pntr n, Vec (2^n) e)
+      -> (FIFOCommand e)
+      -> ((Pntr n, Pntr n, Vec (2^n) e), (Maybe e, FIFOStatus))
+strictFIFO (rpntr, wpntr, elms) command = ((rpntr', wpntr', elms'), (outData, status))
+  where
+    wpntr' | write     = wpntr + 1
+           | otherwise = wpntr
+    rpntr' | read      = rpntr + 1
+           | otherwise = rpntr
+
+    write = case command of
+      Write _ -> True
+      _ -> False
+
+    read = case command of
+      Read -> True
+      _ -> False
+
+    mask  = resize (maxBound :: Unsigned n)
+    wind  = wpntr .&. mask
+    rind  = rpntr .&. mask
+
+    elms' = case command of
+      Write d -> replace wind d elms
+      _ -> elms
+
+    n = fromInteger $ snatToInteger (SNat :: SNat n)
+
+    empty = wpntr == rpntr
+    full  = (testBit wpntr n) /= (testBit rpntr n) &&
+            (wind == rind)
+
+    status = case (empty, full) of
+      (True, False) -> Empty
+      (False, False) -> NonEmpty
+      (False, True) -> Full
+      (True, True) -> errorX "Invalid empty/full calculation in strict FIFO."
+
+    outData = case command of
+      Read -> Just $ elms !! rind
+      _ -> Nothing
+
+strictFIFOL :: HiddenClockResetEnable dom =>
+  Signal dom (FIFOCommand Elm) -> Signal dom (Maybe Elm, FIFOStatus)
+strictFIFOL = strictFIFO `mealy` (0,0,replicate d4 M2S_NoWriteAddress)
