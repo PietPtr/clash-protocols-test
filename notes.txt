@@ -24,3 +24,7 @@ een FIFO kan gemaakt worden die transacties vasthoudt en doorgeeft, en dan in AX
 
 Gaan we de channels instances maken van Df?
   simulate voor ReadData gaat de verkeerde kant op
+
+Hmmm hoe abstracten we de fifo voor de andere channels? Je zou bijna een FIFO aan Df gaan toevoegen ipv per channel aan AXI. (Moet AXI wel goed als DfLike kunnen werken...)
+
+Wat doet een ~ voor een lijst pattern? regel 821 DfLike.hs

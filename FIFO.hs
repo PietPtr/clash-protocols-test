@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module FIFO where
 
+-- TODO: imports netter maken
 import Clash.Prelude hiding (zip, undefined)
 import Prelude hiding ((!!), replicate)
 import qualified Prelude as P
@@ -8,6 +10,18 @@ import Protocols
 import Protocols.Axi4.Common
 import Protocols.Axi4.Lite.Axi4Lite
 import Debug.Trace
+import Data.Proxy
+import Data.Coerce
+import qualified Data.Maybe as Maybe
+
+import qualified Protocols.Hedgehog as H
+import qualified Hedgehog as H
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
+
+import Test.Tasty
+import Test.Tasty.TH (testGroupGenerator)
+import Test.Tasty.Hedgehog.Extra (testProperty)
 
 topEntity ::
   Clock System ->
@@ -218,3 +232,49 @@ strictFIFO (rpntr, wpntr, elms) command = ((rpntr', wpntr', elms'), (outData, st
 strictFIFOL :: HiddenClockResetEnable dom =>
   Signal dom (FIFOCommand Elm) -> Signal dom (Maybe Elm, FIFOStatus)
 strictFIFOL = strictFIFO `mealy` (0,0,replicate d4 M2S_NoWriteAddress)
+
+
+genCatMaybesInput :: H.Gen [Maybe Int]
+genCatMaybesInput =
+  Gen.list (Range.linear 0 100) (genMaybe (genInt 10 20))
+  where
+    genMaybe genA = Gen.choice [Gen.constant Nothing, Just <$> genA]
+    genInt a b = Gen.integral (Range.linear a b)
+
+genAxiFIFOInput :: H.Gen [M2S_WriteAddress ('AddrWidth 4)]
+genAxiFIFOInput =
+  Gen.list (Range.linear 0 100) (genM2S (genInt 0 15))
+  where
+    genM2S genA = Gen.choice [Gen.constant M2S_NoWriteAddress, m2swa <$> genA]
+    genInt a b = Gen.integral (Range.linear a b)
+
+-- prop_axiFIFO :: H.Property
+-- prop_axiFIFO =
+--   H.idWithModel
+--     H.defExpectOptions
+--     genAxiFIFOInput
+--     id
+--     (axiFIFOCircuit @System)
+
+instance Backpressure (Axi4LiteWA dom addr) where
+  boolsToBwd _ = fromList_lazy . (P.map S2M_WriteAddress)
+
+waToMaybe :: (M2S_WriteAddress addr) -> Maybe (M2S_WriteAddress addr)
+waToMaybe wa = case wa of
+  M2S_NoWriteAddress -> Nothing
+  w@M2S_WriteAddress {} -> Just w
+
+instance (KnownDomain dom) => Simulate (Axi4LiteWA dom addr) where
+  type SimulateType (Axi4LiteWA dom addr) = [M2S_WriteAddress addr]
+  -- NoWriteAddress filtered out, not visible on typelevel..?
+  type ExpectType (Axi4LiteWA dom addr) = [M2S_WriteAddress addr]
+  type SimulateChannels (Axi4LiteWA dom addr) = 1
+
+  toSimulateType Proxy = id
+  fromSimulateType Proxy = Maybe.mapMaybe waToMaybe
+
+  driveC = undefined
+  sampleC = undefined -- sample
+  stallC = undefined
+  -- stallC conf (C.head -> (stallAck, stalls)) = stall conf stallAck stalls
+
