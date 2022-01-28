@@ -1,10 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ViewPatterns #-}
 module FIFO where
 
 -- TODO: imports netter maken
 import Clash.Prelude hiding (zip, undefined)
-import Prelude hiding ((!!), replicate)
+import qualified Clash.Explicit.Prelude as CE
+import Prelude hiding ((!!), replicate, head)
 import qualified Prelude as P
 import Protocols
 import Protocols.Axi4.Common
@@ -12,15 +15,17 @@ import Protocols.Axi4.Lite.Axi4Lite
 import Debug.Trace
 import Data.Proxy
 import Data.Coerce
+import           Data.Bool (bool)
 import qualified Data.Maybe as Maybe
 
 import qualified Protocols.Hedgehog as H
 import qualified Hedgehog as H
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
+import Data.List ((\\))
 
 import Test.Tasty
-import Test.Tasty.TH (testGroupGenerator)
+-- import Test.Tasty.TH (testGroupGenerator)
 import Test.Tasty.Hedgehog.Extra (testProperty)
 
 topEntity ::
@@ -273,8 +278,65 @@ instance (KnownDomain dom) => Simulate (Axi4LiteWA dom addr) where
   toSimulateType Proxy = id
   fromSimulateType Proxy = Maybe.mapMaybe waToMaybe
 
-  driveC = undefined
-  sampleC = undefined -- sample
-  stallC = undefined
-  -- stallC conf (C.head -> (stallAck, stalls)) = stall conf stallAck stalls
+  driveC = driveWA
+  sampleC = sampleWA -- sample
+  stallC conf (head -> (stallAck, stalls)) = stallWA conf stallAck stalls
+
+driveWA ::
+  SimulationConfig ->
+  [M2S_WriteAddress addr] ->
+  Circuit () (Axi4LiteWA dom addr)
+driveWA SimulationConfig{resetCycles} s0 = Circuit $
+    ((),)
+  . fromList_lazy
+  . go s0 resetCycles
+  . CE.sample_lazy
+  . P.snd
+  where
+    go _ resetN ~(ack:acks) | resetN > 0 =
+      M2S_NoWriteAddress : (ack `seqX` go s0 (resetN - 1) acks)
+    go [] _ ~(ack:acks) =
+      M2S_NoWriteAddress : (ack `seqX` go s0 0 acks)
+    go (dat:is) _ ~(ack:acks) = case dat of
+      M2S_NoWriteAddress -> M2S_NoWriteAddress : (ack `seqX` go is 0 acks)
+      M2S_WriteAddress {} -> dat : go (if _awready ack then is else dat:is) 0 acks
+
+sampleWA ::
+  SimulationConfig ->
+  Circuit () (Axi4LiteWA dom addr) ->
+  [M2S_WriteAddress addr]
+sampleWA SimulationConfig{..} c =
+    P.take timeoutAfter
+  $ CE.sample_lazy
+  $ ignoreWhileInReset
+  $ P.snd
+  $ toSignals c ((), S2M_WriteAddress <$> rst_n)
+  where
+    ignoreWhileInReset s =
+      (uncurry (bool (M2S_NoWriteAddress))) <$>
+      bundle (s, rst_n)
+
+    rst_n = fromList $ P.replicate resetCycles False <> P.repeat True
+
+stallWA ::
+  SimulationConfig ->
+  StallAck ->
+  [Int] ->
+  Circuit (Axi4LiteWA dom addr) (Axi4LiteWA dom addr)
+stallWA SimulationConfig{..} stallAck stalls = Circuit $
+  uncurry (go stallAcks stalls resetCycles)
+  where
+    go :: [StallAck]
+      -> [Int]
+      -> Int
+      -> Signal dom (M2S_WriteAddress addr)
+      -> Signal dom S2M_WriteAddress
+      -> (Signal dom S2M_WriteAddress,
+          Signal dom (M2S_WriteAddress addr))
+    go = undefined
+
+
+    stallAcks
+      | stallAck == StallCycle = [minBound..maxBound] \\ [StallCycle]
+      | otherwise = [stallAck]
 

@@ -22,9 +22,14 @@ een FIFO kan gemaakt worden die transacties vasthoudt en doorgeeft, en dan in AX
 
 ###
 
-Gaan we de channels instances maken van Df?
+Gaan we de channels instances maken van DfLike?
   simulate voor ReadData gaat de verkeerde kant op
+  Onmogelijk, DfLike wil een `df :: Type -> Type`, en de meeste axi4(lite) types nemen geen type als laatste argument (e.g. :kind (Axi4LiteRA dom) :: AddrWidth -> Type)
 
 Hmmm hoe abstracten we de fifo voor de andere channels? Je zou bijna een FIFO aan Df gaan toevoegen ipv per channel aan AXI. (Moet AXI wel goed als DfLike kunnen werken...)
 
 Wat doet een ~ voor een lijst pattern? regel 821 DfLike.hs
+
+We zouden Df dom AxiType kunnen doen, de types die daar uitkomen zijn isomorphisch aan de types die we nu hebben. Wel wordt xready dan Ack genoemd, en ik heb het gevoel dat die semantics niet overeen komen met Axi.
+
+AxiLike, voor een unit die ready in plaats van Ack gebruikt? of zijn die toch hetzelfde?
