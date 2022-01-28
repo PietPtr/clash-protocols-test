@@ -33,3 +33,7 @@ Wat doet een ~ voor een lijst pattern? regel 821 DfLike.hs
 We zouden Df dom AxiType kunnen doen, de types die daar uitkomen zijn isomorphisch aan de types die we nu hebben. Wel wordt xready dan Ack genoemd, en ik heb het gevoel dat die semantics niet overeen komen met Axi.
 
 AxiLike, voor een unit die ready in plaats van Ack gebruikt? of zijn die toch hetzelfde?
+
+Waarom gebruik jij <> en niet ++? Is het omdat ++ door zowel clash als prelude wordt ge-export?
+
+pred (s :: Int) ipv (s - 1), zit daar meer achter?

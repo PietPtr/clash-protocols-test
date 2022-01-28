@@ -2,10 +2,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE LambdaCase  #-}
 module FIFO where
 
 -- TODO: imports netter maken
 import Clash.Prelude hiding (zip, undefined)
+import           Clash.Signal.Internal (Signal(..))
 import qualified Clash.Explicit.Prelude as CE
 import Prelude hiding ((!!), replicate, head)
 import qualified Prelude as P
@@ -17,6 +19,7 @@ import Data.Proxy
 import Data.Coerce
 import           Data.Bool (bool)
 import qualified Data.Maybe as Maybe
+import qualified Data.Bifunctor as B
 
 import qualified Protocols.Hedgehog as H
 import qualified Hedgehog as H
@@ -37,6 +40,8 @@ topEntity ::
 topEntity = (exposeClockResetEnable $ bundle . toSignals axiFIFOCircuit . unbundle)
 
 
+noAddr = M2S_NoWriteAddress
+
 testSigs :: ([M2S_WriteAddress ('AddrWidth 4)], [S2M_WriteAddress])
 testSigs = (m2s, s2m)
   where
@@ -55,7 +60,6 @@ testSigs = (m2s, s2m)
         noAddr
       ] P.++ P.repeat noAddr
 
-    noAddr = M2S_NoWriteAddress
     addr n = M2S_WriteAddress {
         _awaddr = n,
         _awprot = (NotPrivileged, NonSecure, Data)
@@ -94,7 +98,15 @@ simSignals = simulate @System top (zip (fst testSigs) (snd testSigs))
   where
     top = bundle . (toSignals axiFIFOCircuit) . unbundle
 
+simCircuit :: [M2S_WriteAddress ('AddrWidth 4)]
+simCircuit = P.take 130 $ simulateC exposedAxiFIFO def $
+  [noAddr, m2swa 1, noAddr] <> P.repeat noAddr
 
+
+exposedAxiFIFO :: Circuit
+       (Axi4LiteWA System ('AddrWidth 4))
+       (Axi4LiteWA System ('AddrWidth 4))
+exposedAxiFIFO = exposeClockResetEnable (axiFIFOCircuit @System) clockGen resetGen enableGen
 
 axiFIFOlhs :: HiddenClockResetEnable dom =>
   Signal dom (M2S_WriteAddress ('AddrWidth 4), Bool) ->
@@ -152,7 +164,7 @@ fifo :: forall n e . (KnownNat n, KnownNat (n+1), KnownNat (n+1+1)
      => (Pntr n, Pntr n, Vec (2^n) e)
      -> (e, Bool, Bool)
      -> ((Pntr n,Pntr n,Vec (2^n) e),(Bool,Bool,e))
-fifo (rpntr, wpntr, elms) (datain,wrt,rd) = trace (show $ (rpntr, wpntr, full, empty)) ((rpntr',wpntr',elms'),(full,empty,dataout))
+fifo (rpntr, wpntr, elms) (datain,wrt,rd) = ((rpntr',wpntr',elms'),(full,empty,dataout))
   where
     wpntr' | wrt       = wpntr + 1
            | otherwise = wpntr
@@ -259,7 +271,8 @@ genAxiFIFOInput =
 --     H.defExpectOptions
 --     genAxiFIFOInput
 --     id
---     (axiFIFOCircuit @System)
+--     (exposedAxiFIFO)
+
 
 instance Backpressure (Axi4LiteWA dom addr) where
   boolsToBwd _ = fromList_lazy . (P.map S2M_WriteAddress)
@@ -333,10 +346,37 @@ stallWA SimulationConfig{..} stallAck stalls = Circuit $
       -> Signal dom S2M_WriteAddress
       -> (Signal dom S2M_WriteAddress,
           Signal dom (M2S_WriteAddress addr))
-    go = undefined
+    go [] ss rs fwd bwd = go stallAcks ss rs fwd bwd
 
+    go (_:sas) _ resetN (f :- fwd) ~(b :- bwd) | resetN > 0 =
+      B.bimap (b :-) (f :-) (go sas stalls (resetN - 1) fwd bwd)
+
+    go (sa:sas) [] _ (f :- fwd) ~(b :- bwd) =
+      B.bimap (toStallAck f b sa :-) (f :-) (go sas [] 0 fwd bwd)
+
+    go (sa:sas) ss _ (M2S_NoWriteAddress :- fwd) ~(b :- bwd) =
+      B.bimap (toStallAck M2S_NoWriteAddress b sa :-) (M2S_NoWriteAddress :-) (go sas ss 0 fwd bwd)
+
+    go (_sa:sas) (s:ss) _ (f0 :- fwd) ~(b0 :- bwd) =
+      let
+        (f1, b1, s1) = case compare 0 s of
+          LT -> (M2S_NoWriteAddress, S2M_WriteAddress False, pred s:ss)
+          EQ -> (f0, b0, if _awready b0 then ss else s:ss)
+          GT -> error ("Unexpected negative stall: " <> show s)
+      in
+        B.bimap (b1 :-) (f1 :-) (go sas s1 0 fwd bwd)
 
     stallAcks
       | stallAck == StallCycle = [minBound..maxBound] \\ [StallCycle]
       | otherwise = [stallAck]
+
+    toStallAck :: M2S_WriteAddress addr -> S2M_WriteAddress -> StallAck -> S2M_WriteAddress
+    toStallAck (M2S_WriteAddress {}) rdy = P.const rdy
+    toStallAck M2S_NoWriteAddress ack = \case
+      StallWithNack -> S2M_WriteAddress False
+      StallWithAck -> S2M_WriteAddress True
+      StallWithErrorX -> errorX "No defined ack"
+      StallTransparently -> ack
+      StallCycle -> error "This function should not have been called with StallCycle."
+
 
