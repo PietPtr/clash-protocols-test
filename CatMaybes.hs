@@ -12,7 +12,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ImlicitParams #-}
+{-# LANGUAGE ImplicitParams #-}
 
 module CatMaybes where
 

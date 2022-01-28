@@ -37,3 +37,5 @@ AxiLike, voor een unit die ready in plaats van Ack gebruikt? of zijn die toch he
 Waarom gebruik jij <> en niet ++? Is het omdat ++ door zowel clash als prelude wordt ge-export?
 
 pred (s :: Int) ipv (s - 1), zit daar meer achter?
+
+catDatas ≅ catMaybes . toMaybe oid

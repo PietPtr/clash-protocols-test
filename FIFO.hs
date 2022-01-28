@@ -1,15 +1,21 @@
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE LambdaCase  #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
+
 module FIFO where
 
 -- TODO: imports netter maken
 import Clash.Prelude hiding (zip, undefined)
 import           Clash.Signal.Internal (Signal(..))
 import qualified Clash.Explicit.Prelude as CE
-import Prelude hiding ((!!), replicate, head)
+import Prelude hiding ((!!), replicate, head, length, take)
 import qualified Prelude as P
 import Protocols
 import Protocols.Axi4.Common
@@ -20,15 +26,20 @@ import Data.Coerce
 import           Data.Bool (bool)
 import qualified Data.Maybe as Maybe
 import qualified Data.Bifunctor as B
+import GHC.Stack (withFrozenCallStack, HasCallStack)
 
 import qualified Protocols.Hedgehog as H
-import qualified Hedgehog as H
+import qualified Hedgehog as H hiding (Test)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 import Data.List ((\\))
+import qualified Hedgehog.Internal.Show as H
+import qualified Hedgehog.Internal.Property as H hiding (Test)
+
+import Text.Show.Pretty (ppShow)
 
 import Test.Tasty
--- import Test.Tasty.TH (testGroupGenerator)
+import Test.Tasty.TH (testGroupGenerator)
 import Test.Tasty.Hedgehog.Extra (testProperty)
 
 topEntity ::
@@ -265,13 +276,7 @@ genAxiFIFOInput =
     genM2S genA = Gen.choice [Gen.constant M2S_NoWriteAddress, m2swa <$> genA]
     genInt a b = Gen.integral (Range.linear a b)
 
--- prop_axiFIFO :: H.Property
--- prop_axiFIFO =
---   H.idWithModel
---     H.defExpectOptions
---     genAxiFIFOInput
---     id
---     (exposedAxiFIFO)
+
 
 
 instance Backpressure (Axi4LiteWA dom addr) where
@@ -380,3 +385,50 @@ stallWA SimulationConfig{..} stallAck stalls = Circuit $
       StallCycle -> error "This function should not have been called with StallCycle."
 
 
+instance (KnownDomain dom, KnownNat (Width addr)) =>
+  H.Test (Axi4LiteWA dom addr) where
+  expectToLengths Proxy lst = pure $ P.length lst
+
+  expectN :: forall m .
+    (HasCallStack, H.MonadTest m) =>
+    Proxy (Axi4LiteWA dom addr) ->
+    H.ExpectOptions ->
+    Vec 1 Int ->
+    [M2S_WriteAddress addr] ->
+    m [M2S_WriteAddress addr]
+  expectN Proxy (H.ExpectOptions{eoEmptyTail, eoTimeout}) (head -> nExpected) sampled = do
+    go (Maybe.fromMaybe maxBound eoTimeout) nExpected sampled
+    where
+      catDatas [] = []
+      catDatas (wa:was) = case wa of
+        M2S_NoWriteAddress -> catDatas was
+        _ -> wa : catDatas was
+
+      go :: HasCallStack =>
+        Int -> Int -> [M2S_WriteAddress addr] -> m [M2S_WriteAddress addr]
+      go _ _ [] = error "unexpected end of signal."
+      go _ 0 rest = do
+        case catDatas (P.take eoEmptyTail rest) of
+          [] -> pure (P.take nExpected $ catDatas sampled)
+          superfluous ->
+            let err = "Circuit produced more output than expected:" in
+            H.failWith Nothing (err <> "\n\n" <> ppShow superfluous)
+      go timeout n _ | timeout <= 0 =
+        H.failWith Nothing $ P.concat
+          [ "Circuit did not produce enough output. Expected "
+          , show n, " more values. Sampled only ", show (nExpected - n), ":\n\n"
+          , ppShow $ P.take (nExpected - n) (catDatas sampled) ]
+      go timeout n (sample:as) = case sample of
+        M2S_NoWriteAddress -> do go (pred timeout) n as
+        M2S_WriteAddress {} -> go (Maybe.fromMaybe maxBound eoTimeout) (pred n) as
+
+prop_axiFIFO :: H.Property
+prop_axiFIFO =
+  H.idWithModel
+    H.defExpectOptions
+    genAxiFIFOInput
+    id
+    (exposedAxiFIFO)
+
+main :: IO ()
+main = defaultMain $(testGroupGenerator)
