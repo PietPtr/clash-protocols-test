@@ -102,3 +102,8 @@ squarer (partial, shifted, bitcheck, phase) (n, ack) = (state', (ack', result))
     result = case phase of
       Squaring 0 -> Df.Data partial'
       _ -> Df.NoData
+
+
+
+dfDriver :: Circuit () (Df System Int)
+dfDriver = driveC def [Df.Data 4]

@@ -42,6 +42,12 @@ import Test.Tasty
 import Test.Tasty.TH (testGroupGenerator)
 import Test.Tasty.Hedgehog.Extra (testProperty)
 
+{-# ANN topEntity
+  (Synthesize
+    { t_name   = "axi_fifo"
+    , t_inputs = [PortName "clk", PortName "rst", PortName "en", PortName "in_sigs"]
+    , t_output = PortName "out_sigs"
+    }) #-}
 topEntity ::
   Clock System ->
   Reset System ->
@@ -109,15 +115,16 @@ simSignals = simulate @System top (zip (fst testSigs) (snd testSigs))
   where
     top = bundle . (toSignals axiFIFOCircuit) . unbundle
 
-simCircuit :: [M2S_WriteAddress ('AddrWidth 4)]
-simCircuit = P.take 130 $ simulateC exposedAxiFIFO def $
-  [noAddr, m2swa 1, noAddr] <> P.repeat noAddr
+-- simCircuit :: [M2S_WriteAddress ('AddrWidth 4)]
+-- simCircuit = P.take 130 $ simulateC (exposedAxiFIFO @System) def $
+--   [noAddr, m2swa 1, noAddr] <> P.repeat noAddr
 
 
-exposedAxiFIFO :: Circuit
-       (Axi4LiteWA System ('AddrWidth 4))
-       (Axi4LiteWA System ('AddrWidth 4))
-exposedAxiFIFO = exposeClockResetEnable (axiFIFOCircuit @System) clockGen resetGen enableGen
+exposedAxiFIFO :: KnownDomain dom => Circuit
+       (Axi4LiteWA dom ('AddrWidth 4))
+       (Axi4LiteWA dom ('AddrWidth 4))
+exposedAxiFIFO = --undefined
+  exposeClockResetEnable (axiFIFOCircuit) clockGen resetGen enableGen
 
 axiFIFOlhs :: HiddenClockResetEnable dom =>
   Signal dom (M2S_WriteAddress ('AddrWidth 4), Bool) ->
@@ -175,7 +182,7 @@ fifo :: forall n e . (KnownNat n, KnownNat (n+1), KnownNat (n+1+1)
      => (Pntr n, Pntr n, Vec (2^n) e)
      -> (e, Bool, Bool)
      -> ((Pntr n,Pntr n,Vec (2^n) e),(Bool,Bool,e))
-fifo (rpntr, wpntr, elms) (datain,wrt,rd) = ((rpntr',wpntr',elms'),(full,empty,dataout))
+fifo (rpntr, wpntr, elms) (datain,wrt,rd) = {- trace (show (elms))-} ((rpntr',wpntr',elms'),(full,empty,dataout))
   where
     wpntr' | wrt       = wpntr + 1
            | otherwise = wpntr
@@ -201,66 +208,6 @@ fifoL :: HiddenClockResetEnable dom =>
   Signal dom (Elm,Bool,Bool) -> Signal dom (Bool,Bool,Elm)
 fifoL = fifo `mealy` (0,0,replicate d4 M2S_NoWriteAddress)
 
-data FIFOCommand e
-  = Nop
-  | Write e
-  | Read
-  deriving (Show, Generic, NFDataX)
-
-data FIFOStatus
-  = Full
-  | Empty
-  | NonEmpty
-  deriving (Show, Generic, NFDataX)
-
-strictFIFO :: forall n e . (KnownNat n, KnownNat (n+1), KnownNat (n+1+1)
-                     ,KnownNat (n+1+2), KnownNat (2^n))
-      => (Pntr n, Pntr n, Vec (2^n) e)
-      -> (FIFOCommand e)
-      -> ((Pntr n, Pntr n, Vec (2^n) e), (Maybe e, FIFOStatus))
-strictFIFO (rpntr, wpntr, elms) command = ((rpntr', wpntr', elms'), (outData, status))
-  where
-    wpntr' | write     = wpntr + 1
-           | otherwise = wpntr
-    rpntr' | read      = rpntr + 1
-           | otherwise = rpntr
-
-    write = case command of
-      Write _ -> True
-      _ -> False
-
-    read = case command of
-      Read -> True
-      _ -> False
-
-    mask  = resize (maxBound :: Unsigned n)
-    wind  = wpntr .&. mask
-    rind  = rpntr .&. mask
-
-    elms' = case command of
-      Write d -> replace wind d elms
-      _ -> elms
-
-    n = fromInteger $ snatToInteger (SNat :: SNat n)
-
-    empty = wpntr == rpntr
-    full  = (testBit wpntr n) /= (testBit rpntr n) &&
-            (wind == rind)
-
-    status = case (empty, full) of
-      (True, False) -> Empty
-      (False, False) -> NonEmpty
-      (False, True) -> Full
-      (True, True) -> errorX "Invalid empty/full calculation in strict FIFO."
-
-    outData = case command of
-      Read -> Just $ elms !! rind
-      _ -> Nothing
-
-strictFIFOL :: HiddenClockResetEnable dom =>
-  Signal dom (FIFOCommand Elm) -> Signal dom (Maybe Elm, FIFOStatus)
-strictFIFOL = strictFIFO `mealy` (0,0,replicate d4 M2S_NoWriteAddress)
-
 
 genCatMaybesInput :: H.Gen [Maybe Int]
 genCatMaybesInput =
@@ -273,7 +220,7 @@ genAxiFIFOInput :: H.Gen [M2S_WriteAddress ('AddrWidth 4)]
 genAxiFIFOInput =
   Gen.list (Range.linear 0 100) (genM2S (genInt 0 15))
   where
-    genM2S genA = Gen.choice [Gen.constant M2S_NoWriteAddress, m2swa <$> genA]
+    genM2S genA = Gen.choice [{-Gen.constant M2S_NoWriteAddress,-} m2swa <$> genA]
     genInt a b = Gen.integral (Range.linear a b)
 
 
@@ -314,7 +261,7 @@ driveWA SimulationConfig{resetCycles} s0 = Circuit $
     go _ resetN ~(ack:acks) | resetN > 0 =
       M2S_NoWriteAddress : (ack `seqX` go s0 (resetN - 1) acks)
     go [] _ ~(ack:acks) =
-      M2S_NoWriteAddress : (ack `seqX` go s0 0 acks)
+      M2S_NoWriteAddress : (ack `seqX` go [] 0 acks)
     go (dat:is) _ ~(ack:acks) = case dat of
       M2S_NoWriteAddress -> M2S_NoWriteAddress : (ack `seqX` go is 0 acks)
       M2S_WriteAddress {} -> dat : go (if _awready ack then is else dat:is) 0 acks
@@ -422,13 +369,27 @@ instance (KnownDomain dom, KnownNat (Width addr)) =>
         M2S_NoWriteAddress -> do go (pred timeout) n as
         M2S_WriteAddress {} -> go (Maybe.fromMaybe maxBound eoTimeout) (pred n) as
 
-prop_axiFIFO :: H.Property
-prop_axiFIFO =
-  H.idWithModel
-    H.defExpectOptions
-    genAxiFIFOInput
-    id
-    (exposedAxiFIFO)
+-- prop_axiFIFO :: H.Property
+-- prop_axiFIFO =
+--   H.idWithModel
+--     (H.defExpectOptions { H.eoDriveEarly = True, H.eoTimeout = Just 29, H.eoEmptyTail = 30 })
+--     genAxiFIFOInput
+--     id
+--     (exposedAxiFIFO @System)
 
 main :: IO ()
 main = defaultMain $(testGroupGenerator)
+
+
+-- lhsStallC = stallWA (def {resetCycles = 30}) StallWithNack []
+-- rhsStallC :: Circuit (Axi4LiteWA System ('AddrWidth 4)) (Axi4LiteWA System ('AddrWidth 4))
+-- rhsStallC = stallWA (def {resetCycles = 30}) StallWithNack []
+-- someDriver :: Circuit () (Axi4LiteWA System ('AddrWidth 4))
+-- someDriver = driveC (def {resetCycles = 25}) [ M2S_WriteAddress { _awaddr = 0000 , _awprot = ( NotPrivileged , NonSecure , Data ) } ]
+-- stalledAndDriven = someDriver |> lhsStallC |> exposedAxiFIFO |> rhsStallC
+
+
+-- internals fifoLhsData = stallRhsData
+--   where
+--     (fifoLhsReady, fifoRhsData) = toSignals exposedAxiFIFO (fifoLhsData, stallLhsReady)
+--     (stallLhsReady, stallRhsData) = toSignals rhsStallC (fifoRhsData, pure $ S2M_WriteAddress False)

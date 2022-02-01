@@ -28,8 +28,6 @@ Gaan we de channels instances maken van DfLike?
 
 Hmmm hoe abstracten we de fifo voor de andere channels? Je zou bijna een FIFO aan Df gaan toevoegen ipv per channel aan AXI. (Moet AXI wel goed als DfLike kunnen werken...)
 
-Wat doet een ~ voor een lijst pattern? regel 821 DfLike.hs
-
 We zouden Df dom AxiType kunnen doen, de types die daar uitkomen zijn isomorphisch aan de types die we nu hebben. Wel wordt xready dan Ack genoemd, en ik heb het gevoel dat die semantics niet overeen komen met Axi.
 
 AxiLike, voor een unit die ready in plaats van Ack gebruikt? of zijn die toch hetzelfde?
@@ -39,3 +37,39 @@ Waarom gebruik jij <> en niet ++? Is het omdat ++ door zowel clash als prelude w
 pred (s :: Int) ipv (s - 1), zit daar meer achter?
 
 catDatas ≅ catMaybes . toMaybe oid
+
+Waarom - 5 in de true branch van eoDriveEarly?
+
+  Fout in mijn driveWA (driveC implementatie):
+  > take 140 $ simulateC dfDriver def ()
+  levert 100x NoData op, 1x Data 4, en daarna oneindig NoData. (NewDfTest.hs)
+  [_,_,_,...,_,_,d,_,_,_,_,_,_,...]
+
+  >  P.take 140 $ simulateC someDriver def ()
+  levert 100x NoWriteAddress op (so far so good), en dan het patroon WriteAddress NoWriteAddress, oneindig herhalend. Clearly niet hetzelfde behaviour.
+  [_,_,_,...,_,_,d,_,d,_,d,_,d,...]
+  Dit was inderdaad een bug in de empty list case van de go in driveWA. Gefixt, behaviour is nu hetzelfde.
+
+[of rhs hanging nou is opgelost of niet] Ik ben al een paar keer tegengekomen dat de simulatie hangt, meestal (denk ik) doordat er ergens toch een combinatorial feedback loop in zit. Hoe kan ik die debuggen? HDL genereren lijkt gewoon te kunnen, wat me raar lijkt als er daadwerkelijk een loop in zit, ik dacht dat Clash daar op checkte.
+
+Waarom wordt er een clock in m'n verilog gegenereerd (Iets met System domain denk ik)
+Wanneer exposedAxiFIFO bestaat wordt ie ook gesynthesized, is dat omdat ie in het domain System zit?
+
+Simulation Termination:
+Los lijken rhsStallC en exposedAxiFIFO prima te werken, maar zodra ze aan elkaar gekoppeld gesimuleerd worden terminate het niet:
+> mapM_ print $ zip [1..] $ P.take 32 $ simulateC (exposedAxiFIFO) (def {resetCycles = 30}) [m2swa 4]
+(1,M2S_NoWriteAddress)
+...
+(32,M2S_WriteAddress {_awaddr = 0100, _awprot = (NotPrivileged,NonSecure,Data)})
+
+> mapM_ print $ zip [1..] $ P.take 32 $ simulateC (rhsStallC) (def {resetCycles = 30}) [m2swa 4]
+(1,M2S_NoWriteAddress)
+...
+(31,M2S_WriteAddress {_awaddr = 0100, _awprot = (NotPrivileged,NonSecure,Data)})
+
+> mapM_ print $ zip [1..] $ P.take 32 $ simulateC (exposedAxiFIFO |> rhsStallC) (def {resetCycles = 30}) [m2swa 4]
+(1,M2S_NoWriteAddress)
+...
+(31,^CInterrupted.
+
+
