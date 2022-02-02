@@ -111,19 +111,20 @@ testSigs = (m2s, s2m)
 
     r b = S2M_WriteAddress { _awready = b }
 
-simSignals = simulate @System top (zip (fst testSigs) (snd testSigs))
-  where
-    top = bundle . (toSignals axiFIFOCircuit) . unbundle
+-- simSignals = simulate @System top (zip (fst testSigs) (snd testSigs))
+--   where
+--     top = bundle . (toSignals axiFIFOCircuit) . unbundle
 
--- simCircuit :: [M2S_WriteAddress ('AddrWidth 4)]
--- simCircuit = P.take 130 $ simulateC (exposedAxiFIFO @System) def $
---   [noAddr, m2swa 1, noAddr] <> P.repeat noAddr
+simCircuit :: [M2S_WriteAddress ('AddrWidth 4)]
+simCircuit = P.take 130 $ simulateC (exposedAxiFIFO) def $
+  [noAddr, m2swa 1, noAddr] <> P.repeat noAddr
 
 
-exposedAxiFIFO :: KnownDomain dom => Circuit
-       (Axi4LiteWA dom ('AddrWidth 4))
-       (Axi4LiteWA dom ('AddrWidth 4))
-exposedAxiFIFO = --undefined
+exposedAxiFIFO :: Circuit
+       (Axi4LiteWA System ('AddrWidth 4))
+       (Axi4LiteWA System ('AddrWidth 4))
+exposedAxiFIFO =
+  -- undefined
   exposeClockResetEnable (axiFIFOCircuit) clockGen resetGen enableGen
 
 axiFIFOlhs :: HiddenClockResetEnable dom =>
@@ -131,10 +132,10 @@ axiFIFOlhs :: HiddenClockResetEnable dom =>
   Signal dom (S2M_WriteAddress, Bool, Elm)
 axiFIFOlhs inp = outp
   where
-    (lhsData, full) = unbundle inp
+    ~(lhsData, full) = unbundle inp
     outp = bundle (lhsReady, write, dataInFifo)
     lhsReady = (S2M_WriteAddress . not) <$> full
-    (write, dataInFifo) = unbundle $ fifoWriteSigs <$> full <*> lhsData
+    ~(write, dataInFifo) = unbundle $ fifoWriteSigs <$> full <*> lhsData
 
     fifoWriteSigs full lhsData = if full
       then (False, M2S_NoWriteAddress)
@@ -147,7 +148,7 @@ axiFIFOrhs :: HiddenClockResetEnable dom =>
   Signal dom (M2S_WriteAddress ('AddrWidth 4), Bool)
 axiFIFOrhs inp = outp
   where
-    (rhsReady, empty, dataOutFifo) = unbundle inp
+    ~(rhsReady, empty, dataOutFifo) = unbundle inp
     outp = bundle (rhsData, read)
     rhsData = dataSig <$> read <*> dataOutFifo
     read = readSig <$> rhsReady <*> empty
@@ -162,11 +163,11 @@ axiFIFOCircuit :: HiddenClockResetEnable dom =>
   Circuit (Axi4LiteWA dom ('AddrWidth 4)) (Axi4LiteWA dom ('AddrWidth 4))
 axiFIFOCircuit = Circuit go
   where
-    go (lhsData, rhsReady) = (lhsReady, rhsData)
+    go ~(lhsData, rhsReady) = (lhsReady, rhsData)
       where
-        (lhsReady, write, dataInFifo) = unbundle $ axiFIFOlhs $ bundle (lhsData, full)
-        (rhsData, read) = unbundle $ axiFIFOrhs $ bundle (rhsReady, empty, dataOutFifo)
-        (full, empty, dataOutFifo) = unbundle $ fifoL $ bundle (dataInFifo, write, read)
+        ~(lhsReady, write, dataInFifo) = unbundle $ axiFIFOlhs $ bundle (lhsData, full)
+        ~(rhsData, read) = unbundle $ axiFIFOrhs $ bundle (rhsReady, empty, dataOutFifo)
+        ~(full, empty, dataOutFifo) = unbundle $ fifoL $ bundle (dataInFifo, write, read)
 
 type Elm  = M2S_WriteAddress ('AddrWidth 4)
 type Pntr n = Unsigned (n + 1)
@@ -182,7 +183,7 @@ fifo :: forall n e . (KnownNat n, KnownNat (n+1), KnownNat (n+1+1)
      => (Pntr n, Pntr n, Vec (2^n) e)
      -> (e, Bool, Bool)
      -> ((Pntr n,Pntr n,Vec (2^n) e),(Bool,Bool,e))
-fifo (rpntr, wpntr, elms) (datain,wrt,rd) = {- trace (show (elms))-} ((rpntr',wpntr',elms'),(full,empty,dataout))
+fifo ~(rpntr, wpntr, elms) ~(datain,wrt,rd) = {- trace (show (elms))-} ((rpntr',wpntr',elms'),(full,empty,dataout))
   where
     wpntr' | wrt       = wpntr + 1
            | otherwise = wpntr
@@ -369,27 +370,71 @@ instance (KnownDomain dom, KnownNat (Width addr)) =>
         M2S_NoWriteAddress -> do go (pred timeout) n as
         M2S_WriteAddress {} -> go (Maybe.fromMaybe maxBound eoTimeout) (pred n) as
 
--- prop_axiFIFO :: H.Property
--- prop_axiFIFO =
---   H.idWithModel
---     (H.defExpectOptions { H.eoDriveEarly = True, H.eoTimeout = Just 29, H.eoEmptyTail = 30 })
---     genAxiFIFOInput
---     id
---     (exposedAxiFIFO @System)
+prop_axiFIFO :: H.Property
+prop_axiFIFO =
+  H.idWithModel
+    -- (H.defExpectOptions { H.eoDriveEarly = True, H.eoTimeout = Just 30, H.eoEmptyTail = 30 })
+    H.defExpectOptions
+    genAxiFIFOInput
+    id
+    (exposeClockResetEnable (registerAxi @System) clockGen resetGen enableGen)
 
 main :: IO ()
 main = defaultMain $(testGroupGenerator)
 
 
--- lhsStallC = stallWA (def {resetCycles = 30}) StallWithNack []
--- rhsStallC :: Circuit (Axi4LiteWA System ('AddrWidth 4)) (Axi4LiteWA System ('AddrWidth 4))
--- rhsStallC = stallWA (def {resetCycles = 30}) StallWithNack []
--- someDriver :: Circuit () (Axi4LiteWA System ('AddrWidth 4))
--- someDriver = driveC (def {resetCycles = 25}) [ M2S_WriteAddress { _awaddr = 0000 , _awprot = ( NotPrivileged , NonSecure , Data ) } ]
--- stalledAndDriven = someDriver |> lhsStallC |> exposedAxiFIFO |> rhsStallC
+identityAxi :: Circuit
+  (Axi4LiteWA dom ('AddrWidth 4))
+  (Axi4LiteWA dom ('AddrWidth 4))
+identityAxi = Circuit $ (unbundle . (fmap go) . bundle)
+  where
+    go (a, b) = (b, a)
 
 
--- internals fifoLhsData = stallRhsData
---   where
---     (fifoLhsReady, fifoRhsData) = toSignals exposedAxiFIFO (fifoLhsData, stallLhsReady)
---     (stallLhsReady, stallRhsData) = toSignals rhsStallC (fifoRhsData, pure $ S2M_WriteAddress False)
+registerAxi :: HiddenClockResetEnable dom => Circuit
+  (Axi4LiteWA dom ('AddrWidth 4))
+  (Axi4LiteWA dom ('AddrWidth 4))
+registerAxi = Circuit $ unbundle . (mealy go M2S_NoWriteAddress) . bundle
+  where
+    go state (lData, rAck) = (state', (S2M_WriteAddress lAck, state))
+      where
+        lAck = not lHasData || getAck rAck
+        lHasData = case lData of
+          M2S_NoWriteAddress -> False
+          _ -> True
+        getAck (S2M_WriteAddress b) = b
+
+        state' = if lAck then lData else state
+
+
+
+lhsStallC = stallWA (def {resetCycles = 30}) StallWithNack []
+rhsStallC :: Circuit (Axi4LiteWA System ('AddrWidth 4)) (Axi4LiteWA System ('AddrWidth 4))
+rhsStallC = stallWA (def {resetCycles = 30}) StallWithNack []
+someDriver :: Circuit () (Axi4LiteWA System ('AddrWidth 4))
+someDriver = driveC (def {resetCycles = 25}) [ M2S_WriteAddress { _awaddr = 0000 , _awprot = ( NotPrivileged , NonSecure , Data ) } ]
+stalledAndDriven = someDriver |> lhsStallC |> exposedAxiFIFO |> rhsStallC
+
+{-
+1. Register ertussen gooien
+2. dezelfde FIFO in Df maken.
+-}
+
+internals fifoLhsData = stallRhsData
+  where
+    (fifoLhsReady, fifoRhsData) = toSignals exposedAxiFIFO (fifoLhsData, stallLhsReady)
+    (stallLhsReady, stallRhsData) = toSignals rhsStallC (fifoRhsData, pure $ S2M_WriteAddress False)
+
+
+
+data WriteAddress (aw :: AddrWidth)
+  = WriteAddress {
+    _awaddr' :: !(BitVector (Width aw)),
+    _awprot' :: PermissionsType 'KeepPermissions
+  }
+
+type Axi4LiteWA'
+  (dom :: Domain)
+  (aw :: AddrWidth) = Df dom (WriteAddress aw)
+
+
