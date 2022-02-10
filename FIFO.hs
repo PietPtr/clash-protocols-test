@@ -20,6 +20,7 @@ import qualified Prelude as P
 import Protocols
 import Protocols.Axi4.Common
 import Protocols.Axi4.Lite.Axi4Lite
+import Protocols.Df (Data (NoData))
 import Debug.Trace
 import Data.Proxy
 import Data.Coerce
@@ -377,7 +378,7 @@ prop_axiFIFO =
     H.defExpectOptions
     genAxiFIFOInput
     id
-    (exposeClockResetEnable (registerAxi @System) clockGen resetGen enableGen)
+    (exposeClockResetEnable (fourRegs @System) clockGen resetGen enableGen)
 
 main :: IO ()
 main = defaultMain $(testGroupGenerator)
@@ -399,13 +400,26 @@ registerAxi = Circuit $ unbundle . (mealy go M2S_NoWriteAddress) . bundle
     go state (lData, rAck) = (state', (S2M_WriteAddress lAck, state))
       where
         lAck = not lHasData || getAck rAck
-        lHasData = case lData of
+        lHasData = case state of
           M2S_NoWriteAddress -> False
           _ -> True
         getAck (S2M_WriteAddress b) = b
 
         state' = if lAck then lData else state
 
+fourRegs :: HiddenClockResetEnable dom => Circuit
+  (Axi4LiteWA dom ('AddrWidth 4))
+  (Axi4LiteWA dom ('AddrWidth 4))
+fourRegs = registerAxi |> registerAxi |> registerAxi |> registerAxi
+
+nRegs :: forall (n :: Nat) dom .
+  (HiddenClockResetEnable dom, KnownNat (n+1)) =>
+  Circuit
+    (Axi4LiteWA dom ('AddrWidth 4))
+    (Axi4LiteWA dom ('AddrWidth 4))
+nRegs = fold (|>) lst
+  where
+    lst = (replicate (SNat :: SNat (n + 1)) registerAxi)
 
 
 lhsStallC = stallWA (def {resetCycles = 30}) StallWithNack []
