@@ -151,7 +151,8 @@ axiFIFOrhs inp = outp
   where
     ~(rhsReady, empty, dataOutFifo) = unbundle inp
     outp = bundle (rhsData, read)
-    rhsData = dataSig <$> read <*> dataOutFifo
+    rhsData = dataSig <$> read' <*> dataOutFifo
+    read' = register False read
     read = readSig <$> rhsReady <*> empty
 
     -- Might be neater with the toBool function of a Df instance
@@ -378,7 +379,7 @@ prop_axiFIFO =
     H.defExpectOptions
     genAxiFIFOInput
     id
-    (exposeClockResetEnable (fourRegs @System) clockGen resetGen enableGen)
+    (exposeClockResetEnable (registerAxi @System) clockGen resetGen enableGen)
 
 main :: IO ()
 main = defaultMain $(testGroupGenerator)
@@ -412,14 +413,14 @@ fourRegs :: HiddenClockResetEnable dom => Circuit
   (Axi4LiteWA dom ('AddrWidth 4))
 fourRegs = registerAxi |> registerAxi |> registerAxi |> registerAxi
 
-nRegs :: forall (n :: Nat) dom .
-  (HiddenClockResetEnable dom, KnownNat (n+1)) =>
-  Circuit
-    (Axi4LiteWA dom ('AddrWidth 4))
-    (Axi4LiteWA dom ('AddrWidth 4))
-nRegs = fold (|>) lst
-  where
-    lst = (replicate (SNat :: SNat (n + 1)) registerAxi)
+-- nRegs :: forall (n :: Nat) dom .
+--   (HiddenClockResetEnable dom, KnownNat (n+1)) =>
+--   Circuit
+--     (Axi4LiteWA dom ('AddrWidth 4))
+--     (Axi4LiteWA dom ('AddrWidth 4))
+-- nRegs = fold (|>) lst
+--   where
+--     lst = (replicate (SNat :: SNat (n + 1)) registerAxi)
 
 
 lhsStallC = stallWA (def {resetCycles = 30}) StallWithNack []
@@ -429,10 +430,7 @@ someDriver :: Circuit () (Axi4LiteWA System ('AddrWidth 4))
 someDriver = driveC (def {resetCycles = 25}) [ M2S_WriteAddress { _awaddr = 0000 , _awprot = ( NotPrivileged , NonSecure , Data ) } ]
 stalledAndDriven = someDriver |> lhsStallC |> exposedAxiFIFO |> rhsStallC
 
-{-
-1. Register ertussen gooien
-2. dezelfde FIFO in Df maken.
--}
+
 
 internals fifoLhsData = stallRhsData
   where
@@ -451,4 +449,14 @@ type Axi4LiteWA'
   (dom :: Domain)
   (aw :: AddrWidth) = Df dom (WriteAddress aw)
 
+-- data Df' (dom :: Domain) (a :: Type)
 
+-- instance Protocol (Df' dom a) where
+--   type Fwd (Df' dom a) = Signal dom (Valid a)
+--   type Bwd (Df' dom a) = Signal dom Ready
+
+-- data Valid a
+--   = Valid a
+--   | NotValid
+
+-- newtype Ready = Ready Bool

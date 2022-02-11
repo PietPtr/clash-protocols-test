@@ -88,3 +88,44 @@ data WriteAddress (aw :: AddrWidth)
 type Axi4LiteWA'
   (dom :: C.Domain)
   (aw :: AddrWidth) = Df dom (WriteAddress aw)
+
+
+
+1. Register ertussen gooien
+axiRegister maken is gelukt, door gewoon te kijken naar registerFwd. Tests slagen gewoon bij deze.
+
+2. dezelfde FIFO in Df maken.
+Zelfde problemen als de axiFIFO, dus er zal ergens bij de aan-elkaar-knoop-logica iets mis aan het gaan zijn.
+
+registerFwd gedraagt zich als een ready ipv een Ack:
+Clash.Prelude Protocols Protocols.Df> Clash.Prelude.simulate sys [(NoData, Ack False), (NoData, Ack False)]
+[(Ack True,NoData),(Ack True,NoData),(Ack True,NoData),(Ack *** Exception: X: finite list
+
+fanout gedraagt zich alleen wel als Ack...
+
+
+Simulate werkt niet voor Axi omdat Axi meer dan alleen Acks terugstuurt. Volle Axi zou hebben:
+  - Fwd: WA, WD, RA datas, WR, RD readies
+  - Bwd: WR, RD datas, WA, WD, RA readies
+Omdat tuples en vectors de boolToBwd gebruiken, en de Bwd veel ingewikkelder is dan een bool, moet er een ander soort simulate class zijn. Deze class heeft dan een driveFwd en driveBwd. een simulateC-achtige functie krijgt dan een SimulateType voor zowel de Bwd als de Fwd (dus twee lijsten aan simulation inputs).
+
+class Simulate2 a where
+  type SimulateTypeFwd a :: Type
+  type SimulateTypeBwd a :: Type
+  -- nog even geen expect type
+  -- en die channels skip ik nu ook even
+  driveFwd ::
+    SimulationConfig ->
+    SimulateTypeFwd a ->
+    Fwd a
+
+  driveBwd ::
+    SimulationConfig ->
+    SimulateTypeBwd a ->
+    Bwd a
+
+  drive ::
+    SimulationConfig ->
+    SimulateTypeFwd a ->
+    SimulateTypeBwd a ->
+    (Fwd a, Bwd a)

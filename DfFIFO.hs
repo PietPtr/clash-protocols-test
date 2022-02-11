@@ -102,7 +102,8 @@ dfFIFOrhs inp = outp
   where
     ~(rhsReady, empty, dataOutFifo) = unbundle inp
     outp = bundle (rhsData, read)
-    rhsData = dataSig <$> read <*> dataOutFifo
+    rhsData = dataSig <$> read' <*> dataOutFifo
+    read' = register False read
     read = readSig <$> rhsReady <*> empty
 
     -- Might be neater with the toBool function of a Df instance
@@ -144,8 +145,8 @@ prop_axiFIFO =
     H.defExpectOptions
     genDfFIFOInput
     id
-    -- exposedDfFIFO
-    (exposeClockResetEnable (registerDf @System) clockGen resetGen enableGen)
+    exposedDfFIFO
+    -- (exposeClockResetEnable (registerDf @System) clockGen resetGen enableGen)
 
 main :: IO ()
 main = defaultMain $(testGroupGenerator)
