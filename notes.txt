@@ -78,13 +78,3 @@ Los lijken rhsStallC en exposedAxiFIFO prima te werken, maar zodra ze aan elkaar
 
 ###
 
-
-data WriteAddress (aw :: AddrWidth)
-  = WriteAddress {
-    _awaddr' :: !(C.BitVector (Width aw)),
-    _awprot' :: PermissionsType 'KeepPermissions
-  }
-
-type Axi4LiteWA'
-  (dom :: C.Domain)
-  (aw :: AddrWidth) = Df dom (WriteAddress aw)
