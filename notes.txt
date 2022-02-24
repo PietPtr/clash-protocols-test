@@ -78,3 +78,23 @@ Los lijken rhsStallC en exposedAxiFIFO prima te werken, maar zodra ze aan elkaar
 
 ###
 
+volgens mij is SimulateFwdType gewoon Fwd, similarly met Bwd: dat is het niet, want protocol types zijn vaak van een signal achtig geval, en simulate type is dan een list daarvan. Msch kan je dat met typelezvel crap wel inferren, maar dan hou je die ()-case waar de simulate type uberhaupt geen list is.
+
+richtingen? (sampleFwd hoeft alleen voor fwd te bestaan, dat is een weird artifact wat me niet goed ligt)
+
+simulateC' @(Df System Int) @(Df System Int)
+  :: SimulationConfig
+     -> [Protocols.Df.Data Int]
+     -> [Protocols.Ack]
+     -> Circuit (Df System Int) (Df System Int)
+     -> ([Protocols.Ack], [Protocols.Df.Data Int])
+
+Zou dus twee lijsten van gelijke lengte geven met de acks die aan links uit het systeem komen, en de data die aan rechts verstuurd wordt. Die twee hebben dus niet bijster veel met elkaar te maken, omdat er net zo goed ook een ander protocol had kunnen staan.
+
+> let circ = idC @(Df System Int)
+> simulateC' @(Df System Int) @(Df System Int) def [NoData, NoData, Protocols.Df.Data 1] [Ack True, Ack False, Ack True] circ
+
+[Ack True,Ack False,Ack True*** Exception: X: finite list
+[NoData,NoData,Data 1*** Exception: X: finite list
+
+Ziet er wel prima uit denk ik, behalve natuurlijk dat ie zich niet aan de simulationconfig houdt.
