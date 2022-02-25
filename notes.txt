@@ -142,3 +142,13 @@ Zou dus twee lijsten van gelijke lengte geven met de acks die aan links uit het 
 [NoData,NoData,Data 1*** Exception: X: finite list
 
 Ziet er wel prima uit denk ik, behalve natuurlijk dat ie zich niet aan de simulationconfig houdt.
+
+###
+
+Moet droppingDriveBwdC @(Df dom a) rekening houden met acks? Ik zou zeggen van niet.
+
+In tests/ staat een bestand met tests voor df, daar kunnen we de simulate functies testen.
+
+Ik kan in Hedgehog.hs een nieuwe functie bouwen om tests mee te genereren die dus gegeven
+
+Simulate herschrijven voor Circuit () a en Circuit a (), aangezien dat de enige zijn die we nodig gaan hebben voor AXI. Een processor kan dan bijvoorbeeld van type Circuit () (Axi, s) zijn, waar s een ander signal is. Een slave van type Circuit Axi () kan dan daarmee verbonden worden via de Circuit notation plugin, zodat dat andere stukje signal er nog uitgehaald kan worden om bijvoorbeeld IO te driven.
