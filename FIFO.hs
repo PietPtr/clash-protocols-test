@@ -212,13 +212,6 @@ fifoL :: HiddenClockResetEnable dom =>
 fifoL = fifo `mealy` (0,0,replicate d4 M2S_NoWriteAddress)
 
 
-genCatMaybesInput :: H.Gen [Maybe Int]
-genCatMaybesInput =
-  Gen.list (Range.linear 0 100) (genMaybe (genInt 10 20))
-  where
-    genMaybe genA = Gen.choice [Gen.constant Nothing, Just <$> genA]
-    genInt a b = Gen.integral (Range.linear a b)
-
 genAxiFIFOInput :: H.Gen [M2S_WriteAddress ('AddrWidth 4)]
 genAxiFIFOInput =
   Gen.list (Range.linear 0 100) (genM2S (genInt 0 15))
