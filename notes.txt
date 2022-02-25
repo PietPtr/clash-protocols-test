@@ -152,3 +152,28 @@ In tests/ staat een bestand met tests voor df, daar kunnen we de simulate functi
 Ik kan in Hedgehog.hs een nieuwe functie bouwen om tests mee te genereren die dus gegeven
 
 Simulate herschrijven voor Circuit () a en Circuit a (), aangezien dat de enige zijn die we nodig gaan hebben voor AXI. Een processor kan dan bijvoorbeeld van type Circuit () (Axi, s) zijn, waar s een ander signal is. Een slave van type Circuit Axi () kan dan daarmee verbonden worden via de Circuit notation plugin, zodat dat andere stukje signal er nog uitgehaald kan worden om bijvoorbeeld IO te driven.
+
+```haskell
+>> :t simulateManager @(Df System Int)
+simulateManager @(Df System Int)
+  :: SimulationConfig
+     -> [Protocols.Ack]
+     -> Circuit () (Df System Int)
+     -> [Protocols.Df.Data Int]
+
+>> :t simulateSubordinate @(Df System Int)
+simulateSubordinate @(Df System Int)
+  :: SimulationConfig
+     -> [Protocols.Df.Data Int]
+     -> Circuit (Df System Int) ()
+     -> [Protocols.Ack]
+```
+
+
+simulateManager lijkt te werken, simulateSubordinate wordt er niet goed gekeken naar de Acks die die terugkrijgt. Een lastig stukje daar is dat zowel de acks gereturned moeten worden als dat ze op invloed moeten zijn van welke data gedrived wordt.
+
+Ik heb het gevoel dat er wat misgaat in de Df instance van simulateSubordinate - die functie is niet zo bijster interessant maar wel een goede oefening om deze te implementeren (doordat hij eigenlijk de verkeerde richting op gaat bestaat er niet echt een voorbeeld).
+
+Het lijkt er op dat ackedData niet helemaal lekker loopt, probeer die somehow losser te testen of zo, er is sowieso veel spannends gaande met lazyness wat best wel nauw luistert.
+
+Volgens mij heb ik ook die ene CI merge / rebase unit gesloopt, maar stack lijkt nog te werken...
