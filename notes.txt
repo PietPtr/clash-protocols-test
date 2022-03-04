@@ -172,8 +172,20 @@ simulateSubordinate @(Df System Int)
 
 simulateManager lijkt te werken, simulateSubordinate wordt er niet goed gekeken naar de Acks die die terugkrijgt. Een lastig stukje daar is dat zowel de acks gereturned moeten worden als dat ze op invloed moeten zijn van welke data gedrived wordt.
 
-Ik heb het gevoel dat er wat misgaat in de Df instance van simulateSubordinate - die functie is niet zo bijster interessant maar wel een goede oefening om deze te implementeren (doordat hij eigenlijk de verkeerde richting op gaat bestaat er niet echt een voorbeeld).
+ik wil wel wat meer weten over ignoreReset in SimulationConfig. Hij lijkt specifiek te zijn voor sampleC.
 
-Het lijkt er op dat ackedData niet helemaal lekker loopt, probeer die somehow losser te testen of zo, er is sowieso veel spannends gaande met lazyness wat best wel nauw luistert.
+Dingen te doen zonder Martijn:
+[x] simulationconfig voor Df Simulate instance implementeren
+[x] documentatie simulate(M|S)
+[x] Spannende merge van simulate branch naar axi4-lite
+[x] Axi4Lite als 1 record datatype bouwen
+[ ] simulateManager implementeren voor Axi4Lite
+[ ] simulateSubordinate implementeren voor Axi4Lite
 
-Volgens mij heb ik ook die ene CI merge / rebase unit gesloopt, maar stack lijkt nog te werken...
+Betere moduleverdeling voor Axi4Lite? Nu staan alle types en instances in 1 bestand, en dat is ook eigenlijk alles wat er is. Splitsen we dat uit? Het opsplitsen per channel zoals in grote axi lijkt me voor Axi lite nogal veer noise.
+
+SimulateChannels wil ik naar kijken, is dat nuttig voor AXI?
+
+In reset, ben je dan ready of niet? Ik zou zeggen van niet.
+
+Er gaat iets goed mis in het deriven van de NFDataX instance ergens...

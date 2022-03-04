@@ -25,7 +25,7 @@ simMan = simulateManager def
     circ = (drive def [Data 1, Data 2, Data 3]) |> registerFwd
 
 simSub = simulateSubordinate def
-  ([NoData, Data 10, NoData, NoData, Data 5])
+  ([NoData, Data 10, Data 5, Data 4, Data 3])
   (withClockResetEnable clockGen resetGen enableGen $ circ @System)
   where
     circ :: HiddenClockResetEnable dom =>
@@ -34,9 +34,9 @@ simSub = simulateSubordinate def
       where
         go (dataSig, ()) = (ackSig, ())
           where
-            ackSig = (\r -> Ack $ r <= 1) <$> regSig
+            ackSig = (\r -> Ack $ r <= 0) <$> regSig
 
-            regSig = register 4 setSig
+            regSig = register 0 setSig
 
             setSig = setter <$> dataSig <*> regSig
             setter d current = if current == 0
@@ -44,5 +44,4 @@ simSub = simulateSubordinate def
                 Data n -> n
                 NoData -> current
               else current - 1
-
 
