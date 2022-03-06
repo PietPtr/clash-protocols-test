@@ -1,0 +1,13 @@
+{signal: [
+  {name: 'clk', wave: 'p...........'},
+  {name: 'm2s wa', wave: 'xxxxxxxxxxxx'},
+  {name: 's2m wa', wave: '0...........'},
+  {name: 'm2s wd', wave: 'xxxxxxxxxxxx'},
+  {name: 's2m wd', wave: '0...........'},
+  {name: 'm2s wr', wave: '0...........'},
+  {name: 's2m wr', wave: 'xxxxxxxxxxxx'},
+  {name: 'm2s ra', wave: '2..xxxxxxxxx', data: ['0b0101']},
+  {name: 's2m ra', wave: '0.10........'},
+  {name: 'm2s rd', wave: '0.......10..'},
+  {name: 's2m rd', wave: 'xxxxxx2..x..', data: ['00:00:00:05']}
+]}

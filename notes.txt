@@ -179,8 +179,13 @@ Dingen te doen zonder Martijn:
 [x] documentatie simulate(M|S)
 [x] Spannende merge van simulate branch naar axi4-lite
 [x] Axi4Lite als 1 record datatype bouwen
-[ ] simulateManager implementeren voor Axi4Lite
-[ ] simulateSubordinate implementeren voor Axi4Lite
+[x] simulateManager implementeren voor Axi4Lite
+[x] simulateSubordinate implementeren voor Axi4Lite
+[x] Show instance voor M2S_Axi4Lite en S2M_Axi4Lite
+[x] Testcode die simulateManager gebruikt maken
+[ ] Testcode die simulateSubordinate gebruikt maken
+[ ] Een voorbeeld zien te bouwen wat een Axi master en slave verbindt, maar nog data 'exporteert'
+[ ] WaveDrom dingen bouwen
 
 Betere moduleverdeling voor Axi4Lite? Nu staan alle types en instances in 1 bestand, en dat is ook eigenlijk alles wat er is. Splitsen we dat uit? Het opsplitsen per channel zoals in grote axi lijkt me voor Axi lite nogal veer noise.
 
@@ -188,4 +193,11 @@ SimulateChannels wil ik naar kijken, is dat nuttig voor AXI?
 
 In reset, ben je dan ready of niet? Ik zou zeggen van niet.
 
-Er gaat iets goed mis in het deriven van de NFDataX instance ergens...
+Er gaat iets goed mis in het deriven van de NFDataX instance ergens... (fromList_lazy fixte het, waarom heeft die nou weer geen NFDataX nodig...)
+
+gewoon zo'n ding bouwen wat van die wikipedia-style diagrammen genereert gegeven een lijst M2S en S2M, daar bestaat een text based formaat voor (wavedrom)
+
+```haskell
+-- schrijft meteen dat hele diagram weg naar een file
+generateDiagram :: [M2S_Axi4Lite aw bw] -> [S2M_Axi4Lite aw bw] -> WaveDiagram
+```
