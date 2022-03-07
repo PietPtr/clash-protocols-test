@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 module AxiSim where
 
 import Clash.Prelude
@@ -20,14 +21,15 @@ idleS2MChannels = S2M_Axi4Lite {
 idle = L.repeat idleS2MChannels
 
 
-sim = simulateManager def testCase master
+sim = simulateRight def testCase master
   where
     master = exposeClockResetEnable (axiMaster @System) clockGen resetGen enableGen
 
-sim' = simulateSubordinate def testCaseSlave slave
+sim' = simulateLeft def testCaseSlave slave
   where
     slave = exposeClockResetEnable (axiSlave @System) clockGen resetGen enableGen
 
+testCaseSlave :: [M2S_Axi4Lite ('AddrWidth 4) 'Width32]
 testCaseSlave = [
     build False noaddr,
     build False (buildra 5),
@@ -39,11 +41,11 @@ testCaseSlave = [
     build False noaddr,
     build True noaddr,
     build True noaddr,
-    build True noaddr,
-    build True noaddr,
-    build True noaddr,
-    build True noaddr,
-    build True noaddr
+    build False noaddr,
+    build False noaddr,
+    build False noaddr,
+    build False noaddr,
+    build False noaddr
   ]
   where
     build rdready addr = M2S_Axi4Lite {
@@ -66,7 +68,7 @@ axiSlave :: HiddenClockResetEnable dom =>
 axiSlave = Circuit go
   where
     go (m2s, ()) = (machine m2s, ())
-    machine = mealy axiSlaveMealy (Startup 100)
+    machine = mealy axiSlaveMealy (Startup 101)
 
 data SlaveState
   = Startup Int
@@ -91,6 +93,7 @@ axiSlaveMealy state M2S_Axi4Lite{..} = (state', channels)
     s2m_ra = case state of
       ReadyForAddress -> True
       _ -> False
+
     s2m_rd = case state of
       OutputReadData -> S2M_ReadData {
           _rdata = 0:>0:>0:>7:>Nil,
@@ -109,8 +112,8 @@ axiSlaveMealy state M2S_Axi4Lite{..} = (state', channels)
         then ReadyForAddress
         else Startup (n - 1)
       ReadyForAddress -> if raHasData
-        then ReadyForAddress
-        else Process 4
+        then Process 4
+        else ReadyForAddress
       Process n -> if n <= 0
         then OutputReadData
         else Process (n - 1)

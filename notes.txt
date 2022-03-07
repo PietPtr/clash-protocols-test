@@ -183,9 +183,9 @@ Dingen te doen zonder Martijn:
 [x] simulateSubordinate implementeren voor Axi4Lite
 [x] Show instance voor M2S_Axi4Lite en S2M_Axi4Lite
 [x] Testcode die simulateManager gebruikt maken
-[ ] Testcode die simulateSubordinate gebruikt maken
+[x] Testcode die simulateSubordinate gebruikt maken
+[-] WaveDrom dingen instellen en gebruiken
 [ ] Een voorbeeld zien te bouwen wat een Axi master en slave verbindt, maar nog data 'exporteert'
-[ ] WaveDrom dingen bouwen
 
 Betere moduleverdeling voor Axi4Lite? Nu staan alle types en instances in 1 bestand, en dat is ook eigenlijk alles wat er is. Splitsen we dat uit? Het opsplitsen per channel zoals in grote axi lijkt me voor Axi lite nogal veer noise.
 
@@ -201,3 +201,7 @@ gewoon zo'n ding bouwen wat van die wikipedia-style diagrammen genereert gegeven
 -- schrijft meteen dat hele diagram weg naar een file
 generateDiagram :: [M2S_Axi4Lite aw bw] -> [S2M_Axi4Lite aw bw] -> WaveDiagram
 ```
+
+Ik denk dat het beter is om simulate(L|R) in een andere class te zetten, aangezien er voor AXI niet echt chill een Simulate class gemaakt kan worden, en voor Df simulate(L|R) absoluut niet nuttig zijn.
+
+Ik had graag protocols-test verder opgezet, maar cabal geeft heel vervelende errors met WaveDrom :/

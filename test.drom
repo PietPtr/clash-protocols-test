@@ -1,3 +1,4 @@
+// simulateMaster / simulateRight
 {signal: [
   {name: 'clk', wave: 'p...........'},
   {name: 'm2s wa', wave: 'xxxxxxxxxxxx'},
@@ -10,4 +11,13 @@
   {name: 's2m ra', wave: '0.10........'},
   {name: 'm2s rd', wave: '0.......10..'},
   {name: 's2m rd', wave: 'xxxxxx2..x..', data: ['00:00:00:05']}
+]}
+
+// simulateSlave / simulateLeft
+{signal: [
+  {name: 'clk', wave: 'p.....|........'},
+  {name: 'm2s ra', wave: 'x2..xxxxxxxxxxx', data: ['0b0101']},
+  {name: 's2m ra', wave: '0..10..........'},
+  {name: 'm2s rd', wave: '0.......1.0....'},
+  {name: 's2m rd', wave: 'xxxxxxxxx2xxxxx', data: [':::07']}
 ]}
