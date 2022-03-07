@@ -186,6 +186,8 @@ Dingen te doen zonder Martijn:
 [x] Testcode die simulateSubordinate gebruikt maken
 [-] WaveDrom dingen instellen en gebruiken
 [ ] Een voorbeeld zien te bouwen wat een Axi master en slave verbindt, maar nog data 'exporteert'
+[ ] Optie 1. Alle Simulate instances volledig implementeren.
+    Optie 2. Simulate uit elkaar trekken in 2 classes.
 
 Betere moduleverdeling voor Axi4Lite? Nu staan alle types en instances in 1 bestand, en dat is ook eigenlijk alles wat er is. Splitsen we dat uit? Het opsplitsen per channel zoals in grote axi lijkt me voor Axi lite nogal veer noise.
 
