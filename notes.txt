@@ -207,3 +207,24 @@ generateDiagram :: [M2S_Axi4Lite aw bw] -> [S2M_Axi4Lite aw bw] -> WaveDiagram
 Ik denk dat het beter is om simulate(L|R) in een andere class te zetten, aangezien er voor AXI niet echt chill een Simulate class gemaakt kan worden, en voor Df simulate(L|R) absoluut niet nuttig zijn.
 
 Ik had graag protocols-test verder opgezet, maar cabal geeft heel vervelende errors met WaveDrom :/
+
+CSignals zijn ook niet generiek genoeg, ze gaan maar 1 kant op, dus je moet een SignalR protocol en een SignalL protocol hebben.
+
+Welke voordelen biedt de Circuit abstractie?
+1. Composition met de |> operator
+2. Repetition met `repeatC`
+3. Product van circuits met `prodC`
+4. Simulation functies
+
+DfLike en Df bieden nog _veel_ meer, maar alle vijf de AXI channels samen is niet Df weten we inmiddels, en door interchannel relaties vallen het ook niet uit vijf DfLike dingen te composen.
+
+1. We composen alleen master |> slave, en als dat gewoon Signal level functies zijn dan heb je die compositie niet echt nodig.
+2. `Circ (Vec n ()) (Vec n AXI)` is nou ook niet bepaald elegant, en met een map of repeat of whatever kan je ook meerdere componenten naast elkaar zetten.
+3. `Circ ((), ()) (AXI, AXI)` misschien zelfs nog minder.
+4. Die hebben Signal-level functies ook, en de AXI simulatie functies (left en right) werken nu praktisch ook op signal level maar dan met lijsten, je hebt daar niet dat voordeel van een ExpectType en zo.
+
+De grootste teleurstelling vond ik sowieso al dat een component zelf nog het protocol moet implementeren, maar hoe je dat anders zou doen zou ik ook niet weten.
+
+clash-protocols blijft op meerdere plekken doordrongen van een soort links-naar-rechts principe: |> composed in een richting (en <| is gewoon een re-ordering van de arguments met hetzelfde resultaat, flip (|>)). Verder is alleen de Fwd direction injective, terwijl als je van die data extraction wil doen (Extraction.hs) moet je een non-injective Forward kunnen hebben. AXI gaat niet van links naar rechts, maar _tussen_ master en slave.
+
+Kort met loops ge-experimenteerd want met signal axi ging dat mis, wsch wacht ik weer op een ready ergens (check op wikipedia hoe dat ook alweer precies zat)
