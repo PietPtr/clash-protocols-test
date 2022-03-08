@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
-module Extraction where
+module NoCircuitAxi where
 
 import Clash.Prelude
 import Protocols.Axi4.Common
@@ -87,7 +87,7 @@ data MasterState
 
 axiMasterMealy :: MasterState -> (S2M_Axi4Lite ('AddrWidth 4) 'Width32, Bool) ->
   (MasterState, M2S_Axi4Lite ('AddrWidth 4) 'Width32)
-axiMasterMealy state (S2M_Axi4Lite{..}, enable) = (state', channels)
+axiMasterMealy state (S2M_Axi4Lite{..}, enable) = (state'', channels)
   where
     state'' = if enable then state' else state
 

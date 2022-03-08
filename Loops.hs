@@ -2,6 +2,7 @@ module Loops where
 
 
 import Clash.Prelude
+import qualified Data.List as L
 
 loopL :: Int -> (Bool, Int) -> (Int, Int)
 loopL state (enable, fromRight) = (state', state)
@@ -10,21 +11,21 @@ loopL state (enable, fromRight) = (state', state)
       then fromRight
       else state
 
-loopR :: Int -> Int -> (Int, (Int, Int))
-loopR state fromLeft = (state', (state, state))
+loopR :: Int -> Int -> (Int, Int)
+loopR state fromLeft = (state', (state))
   where
     state' = if even fromLeft
       then fromLeft
       else state + 1
 
 
-top enable = out
+top enable = fromRight
   where
     l = mealy loopL 0
     r = mealy loopR 1
 
     fromLeft = l $ bundle (enable, fromRight)
-    (fromRight, out) = unbundle $ r fromLeft
+    fromRight = r fromLeft
 
 top' enable = fromRight
   where

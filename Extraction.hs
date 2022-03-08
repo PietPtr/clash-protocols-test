@@ -8,6 +8,8 @@ import Protocols.Axi4.Common
 import Protocols.Axi4.Lite.Axi4Lite
 import Protocols.Internal
 import Data.List as L
+import AxiSim (testCaseSlave)
+
 
 data SignalL dom a = SignalL (Signal dom a)
 data SignalR dom a = SignalR (Signal dom a)
@@ -22,7 +24,11 @@ instance Protocol (SignalL dom a) where
   type Bwd (SignalL dom a) = SignalL dom ()
 
 
-type InputType = BitVector 4
+sim' = simulateLeft def (testCaseSlave, L.repeat True) slave
+  where
+    slave = exposeClockResetEnable (axiSlave @System) clockGen resetGen enableGen
+
+type InputType = Bool
 
 axiSlave :: HiddenClockResetEnable dom =>
   Circuit (Axi4Lite dom ('AddrWidth 4) ('Width32), CSignal dom InputType) ()

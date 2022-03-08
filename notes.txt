@@ -154,15 +154,15 @@ Ik kan in Hedgehog.hs een nieuwe functie bouwen om tests mee te genereren die du
 Simulate herschrijven voor Circuit () a en Circuit a (), aangezien dat de enige zijn die we nodig gaan hebben voor AXI. Een processor kan dan bijvoorbeeld van type Circuit () (Axi, s) zijn, waar s een ander signal is. Een slave van type Circuit Axi () kan dan daarmee verbonden worden via de Circuit notation plugin, zodat dat andere stukje signal er nog uitgehaald kan worden om bijvoorbeeld IO te driven.
 
 ```haskell
->> :t simulateManager @(Df System Int)
-simulateManager @(Df System Int)
+>> :t simulateRight @(Df System Int)
+simulateRight @(Df System Int)
   :: SimulationConfig
      -> [Protocols.Ack]
      -> Circuit () (Df System Int)
      -> [Protocols.Df.Data Int]
 
->> :t simulateSubordinate @(Df System Int)
-simulateSubordinate @(Df System Int)
+>> :t simulateLeft @(Df System Int)
+simulateLeft @(Df System Int)
   :: SimulationConfig
      -> [Protocols.Df.Data Int]
      -> Circuit (Df System Int) ()
@@ -170,7 +170,7 @@ simulateSubordinate @(Df System Int)
 ```
 
 
-simulateManager lijkt te werken, simulateSubordinate wordt er niet goed gekeken naar de Acks die die terugkrijgt. Een lastig stukje daar is dat zowel de acks gereturned moeten worden als dat ze op invloed moeten zijn van welke data gedrived wordt.
+simulateRight lijkt te werken, simulateLeft wordt er niet goed gekeken naar de Acks die die terugkrijgt. Een lastig stukje daar is dat zowel de acks gereturned moeten worden als dat ze op invloed moeten zijn van welke data gedrived wordt.
 
 ik wil wel wat meer weten over ignoreReset in SimulationConfig. Hij lijkt specifiek te zijn voor sampleC.
 
@@ -179,19 +179,19 @@ Dingen te doen zonder Martijn:
 [x] documentatie simulate(M|S)
 [x] Spannende merge van simulate branch naar axi4-lite
 [x] Axi4Lite als 1 record datatype bouwen
-[x] simulateManager implementeren voor Axi4Lite
-[x] simulateSubordinate implementeren voor Axi4Lite
+[x] simulateRight implementeren voor Axi4Lite
+[x] simulateLeft implementeren voor Axi4Lite (die overigens enorm veel lijkt op simulateRight)
 [x] Show instance voor M2S_Axi4Lite en S2M_Axi4Lite
-[x] Testcode die simulateManager gebruikt maken
-[x] Testcode die simulateSubordinate gebruikt maken
+[x] Testcode die simulateRight gebruikt maken (AxiSim.hs)
+[x] Testcode die simulateLeft gebruikt maken (AxiSim.hs)
 [-] WaveDrom dingen instellen en gebruiken
-[ ] Een voorbeeld zien te bouwen wat een Axi master en slave verbindt, maar nog data 'exporteert'
+[x] Een voorbeeld zien te bouwen wat een Axi master en slave verbindt, maar nog data 'exporteert' (Extraction.hs)
 [ ] Optie 1. Alle Simulate instances volledig implementeren.
     Optie 2. Simulate uit elkaar trekken in 2 classes.
 
 Betere moduleverdeling voor Axi4Lite? Nu staan alle types en instances in 1 bestand, en dat is ook eigenlijk alles wat er is. Splitsen we dat uit? Het opsplitsen per channel zoals in grote axi lijkt me voor Axi lite nogal veer noise.
 
-SimulateChannels wil ik naar kijken, is dat nuttig voor AXI?
+SimulateChannels weet ik het nut niet van, is dat nuttig voor AXI?
 
 In reset, ben je dan ready of niet? Ik zou zeggen van niet.
 
@@ -204,7 +204,7 @@ gewoon zo'n ding bouwen wat van die wikipedia-style diagrammen genereert gegeven
 generateDiagram :: [M2S_Axi4Lite aw bw] -> [S2M_Axi4Lite aw bw] -> WaveDiagram
 ```
 
-Ik denk dat het beter is om simulate(L|R) in een andere class te zetten, aangezien er voor AXI niet echt chill een Simulate class gemaakt kan worden, en voor Df simulate(L|R) absoluut niet nuttig zijn.
+Ik denk dat het beter is om simulate(L|R) in een andere class te zetten, aangezien er voor AXI niet echt chill een Simulate class gemaakt kan worden, en voor Df simulate(L|R) niet nuttig zijn.
 
 Ik had graag protocols-test verder opgezet, maar cabal geeft heel vervelende errors met WaveDrom :/
 
@@ -215,16 +215,79 @@ Welke voordelen biedt de Circuit abstractie?
 2. Repetition met `repeatC`
 3. Product van circuits met `prodC`
 4. Simulation functies
+5. Circuit Notation plugin
 
-DfLike en Df bieden nog _veel_ meer, maar alle vijf de AXI channels samen is niet Df weten we inmiddels, en door interchannel relaties vallen het ook niet uit vijf DfLike dingen te composen.
+DfLike en Df bieden nog _veel_ meer, maar alle vijf de AXI channels samen is niet Df weten we inmiddels, en door interchannel relaties valt het ook niet uit vijf DfLike dingen te composen.
 
 1. We composen alleen master |> slave, en als dat gewoon Signal level functies zijn dan heb je die compositie niet echt nodig.
 2. `Circ (Vec n ()) (Vec n AXI)` is nou ook niet bepaald elegant, en met een map of repeat of whatever kan je ook meerdere componenten naast elkaar zetten.
 3. `Circ ((), ()) (AXI, AXI)` misschien zelfs nog minder.
 4. Die hebben Signal-level functies ook, en de AXI simulatie functies (left en right) werken nu praktisch ook op signal level maar dan met lijsten, je hebt daar niet dat voordeel van een ExpectType en zo.
+5. Zou mogelijk nuttig kunnen zijn in een heel spannende interconnect structuur, maar misschien zou je als designer dan toch al gauw naar signals grijpen.
 
 De grootste teleurstelling vond ik sowieso al dat een component zelf nog het protocol moet implementeren, maar hoe je dat anders zou doen zou ik ook niet weten.
 
 clash-protocols blijft op meerdere plekken doordrongen van een soort links-naar-rechts principe: |> composed in een richting (en <| is gewoon een re-ordering van de arguments met hetzelfde resultaat, flip (|>)). Verder is alleen de Fwd direction injective, terwijl als je van die data extraction wil doen (Extraction.hs) moet je een non-injective Forward kunnen hebben. AXI gaat niet van links naar rechts, maar _tussen_ master en slave.
 
 Kort met loops ge-experimenteerd want met signal axi ging dat mis, wsch wacht ik weer op een ready ergens (check op wikipedia hoe dat ook alweer precies zat)
+
+Houdt alles wat er nu is zoals het is, en maak een MSLike, Master/Slave-like.
+
+1. Composition met `connect`
+2. 3. Repetition en product kunnen we wat voor bedenken binnen deze abstractie
+4. SimulateMS
+5. Werkt hier niet mee, want het zijn geen `Circuit`s of `Protocol`s.
+
+```haskell
+-- inclusief andere signalen die in of out masters en slaves gaan.
+-- TODO: Curryen of tuples?
+newtype Manager dom ms inp out =
+  Manager (Signal dom inp -> S2M ms -> (M2S ms, Signal dom out))
+
+newtype Subordinate dom ms inp out =
+  Subordinate (Signal dom inp -> M2S ms -> (S2M ms, Signal dom out))
+
+-- TODO: Meer type constraints?
+class (forall m2s s2m .
+        M2S a ~ Signal dom m2s
+      , S2M a ~ Signal dom s2m) -- of zo
+      MSLike a where
+  type M2S (a :: Type)
+  type S2M (a :: Type)
+
+  connect :: Manager dom a min mout -> Subordinate dom a sin sout ->
+    (Signal dom (min, sin) -> Signal dom (mout, sout))
+
+
+toSignals ::
+  Manager dom ms min mout -> (Signal dom inp -> S2M ms -> (M2S ms, Signal dom out))
+toSignals :: (m2s ~ M2S a, s2m ~ S2M a) =>
+  Subordinate dom ms sin sout -> (Signal dom inp -> M2S ms -> (S2M ms, Signal dom out))
+
+
+class (MSLike ms) => SimulateMS ms where
+  -- TODO: hedgehog stuff, dus stallers en drivers
+  simulateManager ::
+    SimulationConfig ->
+    [S2M ms] -> [min] ->
+    Manager dom ms min mout ->
+    ([M2S ms], [mout])
+
+  simulateSubordinate ::
+    SimulationConfig ->
+    [M2S ms] -> [sin] ->
+    Subordinate dom ms sin sout ->
+    ([S2M ms], [sout])
+
+  simulate ::
+    SimulationConfig ->
+    Manager dom ms min mout ->
+    Subordinate dom ms sin sout ->
+    [min] -> [sin] ->
+```
+
+Bespreken:
+[ ] Wat er gedaan is
+[ ] fromList_lazy en NFDataX gezeur
+[ ] signals only AXI en de benefits van Circuit
+[ ] MSLike idee
