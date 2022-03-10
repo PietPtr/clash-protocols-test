@@ -106,6 +106,7 @@ Simulate werkt niet voor Axi omdat Axi meer dan alleen Acks terugstuurt. Volle A
   - Bwd: WR, RD datas, WA, WD, RA readies
 Omdat tuples en vectors de boolToBwd gebruiken, en de Bwd veel ingewikkelder is dan een bool, moet er een ander soort simulate class zijn. Deze class heeft dan een driveFwd en driveBwd. een simulateC-achtige functie krijgt dan een SimulateType voor zowel de Bwd als de Fwd (dus twee lijsten aan simulation inputs).
 
+```haskell
 class Simulate2 a where
   type SimulateTypeFwd a :: Type
   type SimulateTypeBwd a :: Type
@@ -132,6 +133,7 @@ simulateC' @(Df System Int) @(Df System Int)
      -> [Protocols.Ack]
      -> Circuit (Df System Int) (Df System Int)
      -> ([Protocols.Ack], [Protocols.Df.Data Int])
+```
 
 Zou dus twee lijsten van gelijke lengte geven met de acks die aan links uit het systeem komen, en de data die aan rechts verstuurd wordt. Die twee hebben dus niet bijster veel met elkaar te maken, omdat er net zo goed ook een ander protocol had kunnen staan.
 
@@ -185,7 +187,7 @@ Dingen te doen zonder Martijn:
 [x] Testcode die simulateRight gebruikt maken (AxiSim.hs)
 [x] Testcode die simulateLeft gebruikt maken (AxiSim.hs)
 [-] WaveDrom dingen instellen en gebruiken
-[x] Een voorbeeld zien te bouwen wat een Axi master en slave verbindt, maar nog data 'exporteert' (Extraction.hs)
+[x] Een voorbeeld zien te bouwen wat een Axi master en slave verbindt, maar nog data 'im/exporteert' (Extraction.hs)
 [ ] Optie 1. Alle Simulate instances volledig implementeren.
     Optie 2. Simulate uit elkaar trekken in 2 classes.
 
@@ -238,56 +240,14 @@ Houdt alles wat er nu is zoals het is, en maak een MSLike, Master/Slave-like.
 4. SimulateMS
 5. Werkt hier niet mee, want het zijn geen `Circuit`s of `Protocol`s.
 
-```haskell
--- inclusief andere signalen die in of out masters en slaves gaan.
--- TODO: Curryen of tuples?
-newtype Manager dom ms inp out =
-  Manager (Signal dom inp -> S2M ms -> (M2S ms, Signal dom out))
+###
 
-newtype Subordinate dom ms inp out =
-  Subordinate (Signal dom inp -> M2S ms -> (S2M ms, Signal dom out))
+Kunnen we Df een special case maken van de bestaande classes? Om hiermee te experimenteren kan ik een DfFwd (gewoon de huidige Df dus) maken en een DfBwd (Df maar dan de bwd en fwd omgewisseld), dan zouden de classes een protocol zoals (DfFwd, DfBwd) moeten aankunnen.
 
--- TODO: Meer type constraints?
-class (forall m2s s2m .
-        M2S a ~ Signal dom m2s
-      , S2M a ~ Signal dom s2m) -- of zo
-      MSLike a where
-  type M2S (a :: Type)
-  type S2M (a :: Type)
+Je schijnt een Circuit met Circuit a te kunnen doen ipv Circuit a b, en dan iets met tuples?
 
-  connect :: Manager dom a min mout -> Subordinate dom a sin sout ->
-    (Signal dom (min, sin) -> Signal dom (mout, sout))
+[ ] We droppen injectivity van de forward, dat gaat errors geven, fix die met type applications.
+[ ] DfBwd maken
 
 
-toSignals ::
-  Manager dom ms min mout -> (Signal dom inp -> S2M ms -> (M2S ms, Signal dom out))
-toSignals :: (m2s ~ M2S a, s2m ~ S2M a) =>
-  Subordinate dom ms sin sout -> (Signal dom inp -> M2S ms -> (S2M ms, Signal dom out))
-
-
-class (MSLike ms) => SimulateMS ms where
-  -- TODO: hedgehog stuff, dus stallers en drivers
-  simulateManager ::
-    SimulationConfig ->
-    [S2M ms] -> [min] ->
-    Manager dom ms min mout ->
-    ([M2S ms], [mout])
-
-  simulateSubordinate ::
-    SimulationConfig ->
-    [M2S ms] -> [sin] ->
-    Subordinate dom ms sin sout ->
-    ([S2M ms], [sout])
-
-  simulate ::
-    SimulationConfig ->
-    Manager dom ms min mout ->
-    Subordinate dom ms sin sout ->
-    [min] -> [sin] ->
-```
-
-Bespreken:
-[ ] Wat er gedaan is
-[ ] fromList_lazy en NFDataX gezeur
-[ ] signals only AXI en de benefits van Circuit
-[ ] MSLike idee
+Nieuwe injectivity branch maken?
