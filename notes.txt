@@ -246,8 +246,12 @@ Kunnen we Df een special case maken van de bestaande classes? Om hiermee te expe
 
 Je schijnt een Circuit met Circuit a te kunnen doen ipv Circuit a b, en dan iets met tuples?
 
-[ ] We droppen injectivity van de forward, dat gaat errors geven, fix die met type applications.
-[ ] DfBwd maken
+[x] We droppen injectivity van de forward, dat gaat errors geven, fix die met type applications.
+[ ] DfBwd maken.
+[ ] Kijken naar Backpressure en hoe dat anders kan.
+[ ] Alias voor DfFwd?
+[ ] (DfBwd, DfFwd) maken, dat kunnen de huidige classes nog niet aan door de BackPressure class.
+...
+[ ] WaveDrom nice proberen op te zetten?
 
 
-Nieuwe injectivity branch maken?
