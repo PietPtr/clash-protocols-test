@@ -246,8 +246,16 @@ Kunnen we Df een special case maken van de bestaande classes? Om hiermee te expe
 
 Je schijnt een Circuit met Circuit a te kunnen doen ipv Circuit a b, en dan iets met tuples?
 
-[ ] We droppen injectivity van de forward, dat gaat errors geven, fix die met type applications.
-[ ] DfBwd maken
+[x] We droppen injectivity van de forward, dat gaat errors geven, fix die met type applications.
+[x] DfBwd maken
+/// [ ] Rewrite (,) Simulate instance zonder boolsToBwd of met een alternatieve BackPressure.
+/// [ ] idem voor Vec n
+/// [ ] Write DfBwd Simulate instance
+[x] Simulate definieren
+[x] SimulateLeft definieren
+[ ] Simulate implementeren (`()`, `(,)`, `Df`, `DfBwd`)
+[ ] Simulate een Circuit (Df dom a, DfBwd dom a) (e.g. een ROM)
+[ ] SimulateLeft implementeren
+[ ] (SimulateRight maken)
 
-
-Nieuwe injectivity branch maken?
+Circuit als Monoid? (Kind van circuit is verkeerd)
