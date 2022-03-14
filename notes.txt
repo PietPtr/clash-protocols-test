@@ -252,10 +252,30 @@ Je schijnt een Circuit met Circuit a te kunnen doen ipv Circuit a b, en dan iets
 /// [ ] idem voor Vec n
 /// [ ] Write DfBwd Simulate instance
 [x] Simulate definieren
-[x] SimulateLeft definieren
-[ ] Simulate implementeren (`()`, `(,)`, `Df`, `DfBwd`)
-[ ] Simulate een Circuit (Df dom a, DfBwd dom a) (e.g. een ROM)
+[x] Simulate implementeren (`()`, `(,)`, `Df`, `DfBwd`)
+[x] Simulate een Circuit (Df dom a, DfBwd dom a) (e.g. een ROM)
+[x] Onderzoek of Simulate uit te spliten valt in kleinere functies die samen de simulateCircuit functie doen.
+[ ] SimulateLeft definieren
 [ ] SimulateLeft implementeren
-[ ] (SimulateRight maken)
+...
+[ ] (SimulateRight)
+[ ] SimulationConfiguration implementeren
+[ ] SimulationChannels in SimulateLeft
 
 Circuit als Monoid? (Kind van circuit is verkeerd)
+
+Type vinden van een ongeimplementeerde functie in een class instance?
+
+Is wat ik nu doe met proxies ook op te lossen met Type applications?
+
+```haskell
+class SimulateFull a => SimulateFwd a where
+  boolsToBwd' :: Proxy a -> [Bool] -> Bwd a
+
+  simulateFwd :: (SimulateFull b) =>
+    Circuit a b ->
+    SimulateFwdType a ->
+    SimulateFwdType b
+```
+
+die 'go' methode werkt nu ook veel slechter :/
