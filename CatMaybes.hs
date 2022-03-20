@@ -37,9 +37,9 @@ import Test.Tasty.Hedgehog.Extra (testProperty)
 catMaybes :: Circuit (Df dom (Maybe a)) (Df dom a)
 catMaybes = Circuit (unbundle . fmap go . bundle)
   where
-    go (Df.NoData, _) = (Df.Ack False, Df.NoData)
-    go (Df.Data Nothing, _) = (Df.Ack True, Df.NoData)
-    go (Df.Data (Just d), Df.Ack ack) = (Df.Ack ack, Df.Data d)
+    go (Df.NoData, _) = (Ack False, Df.NoData)
+    go (Df.Data Nothing, _) = (Ack True, Df.NoData)
+    go (Df.Data (Just d), Ack ack) = (Ack ack, Df.Data d)
 
 
 mapMaybe :: (a -> Maybe b) -> Circuit (Df dom a) (Df dom b)
@@ -49,11 +49,11 @@ mapMaybe' :: forall dom a b. (a -> Maybe b) -> Circuit (Df dom a) (Df dom b)
 mapMaybe' f =
   Circuit (unbundle . fmap go . bundle)
   where
-    go (Df.NoData, _) = (Df.Ack False, Df.NoData)
-    go (Df.Data a, ~(Df.Ack ack)) = d a ack
+    go (Df.NoData, _) = (Ack False, Df.NoData)
+    go (Df.Data a, ~(Ack ack)) = d a ack
     d a ack = case f a of
-      (Just b) -> (Df.Ack ack, Df.Data b)
-      Nothing -> (Df.Ack True, Df.NoData)
+      (Just b) -> (Ack ack, Df.Data b)
+      Nothing -> (Ack True, Df.NoData)
 
 
 genCatMaybesInput :: H.Gen [Maybe Int]
@@ -94,8 +94,8 @@ main :: IO ()
 main = defaultMain $(testGroupGenerator)
 
 
-in_list' :: [(Df.Data (Maybe (Unsigned 8)), Df.Ack (Unsigned 8))]
-in_list' = List.zip in_list (List.repeat $ Df.Ack True)
+in_list' :: [(Df.Data (Maybe (Unsigned 8)), Ack)]
+in_list' = List.zip in_list (List.repeat $ Ack True)
 
 in_list :: [Df.Data (Maybe (Unsigned 8))]
 in_list = [
@@ -110,8 +110,8 @@ sim = filter (/= Df.NoData) $ simulateC (catMaybes @System @(Unsigned 8)) def in
 nonConform :: Circuit (Df dom a) (Df dom a)
 nonConform = Circuit (unbundle . fmap go . bundle)
   where
-    go (Df.NoData, _) = (Df.Ack False, Df.NoData)
-    go (Df.Data d, _) = (Df.Ack False, Df.Data d)
+    go (Df.NoData, _) = (Ack False, Df.NoData)
+    go (Df.Data d, _) = (Ack False, Df.Data d)
 
 resend_sim = simulateC (nonConform @System @(Unsigned 8)) def
   [Df.Data 1, Df.Data 2, Df.Data 3]

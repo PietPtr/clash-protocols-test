@@ -9,10 +9,10 @@ import Data.List as L
 {-
 {signal: [
   {name: 'clk', wave: 'p...........'},
-  {name: 'addrIn',  wave: 'xx2xxxxxxxxx'},
-  {name: 'addrAck', wave: '1..0.....1..'},
-  {name: 'dataOut', wave: 'xxxxxx2..xxx'},
-  {name: 'dataAck', wave: '0.......10..'}
+  {name: 'addrIn (M->S)',  wave: 'xx2xxxxxxxxx'},
+  {name: 'addrAck (S->M)', wave: '1..0.....1..'},
+  {name: 'dataAck (M->S)', wave: '0.......10..'},
+  {name: 'dataOut (S->M)', wave: 'xxxxxx2..xxx'}
 ]}
 -}
 

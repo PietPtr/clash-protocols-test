@@ -253,14 +253,14 @@ Je schijnt een Circuit met Circuit a te kunnen doen ipv Circuit a b, en dan iets
 /// [ ] Write DfBwd Simulate instance
 [x] Simulate definieren
 [x] Simulate implementeren (`()`, `(,)`, `Df`, `DfBwd`)
-[x] Simulate een Circuit (Df dom a, DfBwd dom a) (e.g. een ROM)
+[x] Simulate een Circuit (Df dom a, DfBwd dom a) (e.g. een ROM) (DfMem.hs)
 [x] Onderzoek of Simulate uit te spliten valt in kleinere functies die samen de simulateCircuit functie doen.
-[ ] SimulateLeft definieren
-[ ] SimulateLeft implementeren
+[x] SimulateRight definieren (basically exact Simulate)
+[x] SimulateRight implementeren
+[x] SimulationChannels in SimulateRight
 ...
-[ ] (SimulateRight)
 [ ] SimulationConfiguration implementeren
-[ ] SimulationChannels in SimulateLeft
+[ ] (SimulateLeft)
 
 Circuit als Monoid? (Kind van circuit is verkeerd)
 
@@ -272,14 +272,5 @@ De functies in SimulateFull zijn meestal dezelfde in de beide richtingen, maar m
 
 Benaming van SimulateRightward: -- or call this SimulateForward / SimulateFwd? (idem voor left)
 
-```haskell
-class SimulateFull a => SimulateFwd a where
-  boolsToBwd' :: Proxy a -> [Bool] -> Bwd a
+die 'go' methode werkt nu ook veel slechter door het droppen van injectivity.
 
-  simulateFwd :: (SimulateFull b) =>
-    Circuit a b ->
-    SimulateFwdType a ->
-    SimulateFwdType b
-```
-
-die 'go' methode werkt nu ook veel slechter :/
