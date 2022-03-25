@@ -251,10 +251,10 @@ Je schijnt een Circuit met Circuit a te kunnen doen ipv Circuit a b, en dan iets
 /// [ ] Rewrite (,) Simulate instance zonder boolsToBwd of met een alternatieve BackPressure.
 /// [ ] idem voor Vec n
 /// [ ] Write DfBwd Simulate instance
-[x] Simulate definieren
-[x] Simulate implementeren (`()`, `(,)`, `Df`, `DfBwd`)
-[x] Simulate een Circuit (Df dom a, DfBwd dom a) (e.g. een ROM) (DfMem.hs)
-[x] Onderzoek of Simulate uit te spliten valt in kleinere functies die samen de simulateCircuit functie doen.
+[x] SimulateFull definieren
+[x] SimulateFull implementeren (`()`, `(,)`, `Df`, `DfBwd`)
+[x] SimulateFull een Circuit (Df dom a, DfBwd dom a) (e.g. een ROM) (DfMem.hs)
+[x] Onderzoek of SimulateFull uit te spliten valt in kleinere functies die samen de simulateCircuit functie doen.
 [x] SimulateRight definieren (basically exact Simulate)
 [x] SimulateRight implementeren
 [x] SimulationChannels in SimulateRight
@@ -274,3 +274,17 @@ Benaming van SimulateRightward: -- or call this SimulateForward / SimulateFwd? (
 
 die 'go' methode werkt nu ook veel slechter door het droppen van injectivity.
 
+SimulateRight ~ Simulate
+SimulateFull: eigenlijk alleen maar een verzameling van conversionfuncties zodat de functie in de Circuit gedrived kan worden door een handiger simulatietype.
+
+###
+
+SimulateFull wordt Simulate, we droppen SimulateRightward, want we kunnen SimulateFull met wat associated types magie vergelijkbaar krijgen. Het zorgt dan voor twee simulate functies: een op SimulateType niveau en een op ExpectType niveau.
+
+[x] Verwijder SimulateRight/SimulateLeft
+[x] Lift stallC naar SimulateFull
+[ ] stallCF voor DfBwd
+[ ] Probeer de testcase ook eens ge-composed met stallC
+[ ] Voeg ExpectType toe (groot)
+[ ] These voor de expecttype van axi?
+[ ] Misschien dflike implementatie van de losse channels om stall her te gebruiken
