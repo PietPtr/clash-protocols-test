@@ -288,3 +288,13 @@ SimulateFull wordt Simulate, we droppen SimulateRightward, want we kunnen Simula
 [ ] Voeg ExpectType toe (groot)
 [ ] These voor de expecttype van axi?
 [ ] Misschien dflike implementatie van de losse channels om stall her te gebruiken
+
+Hebben we deze functie nodig: `[(WA,WD,WR,RA,RD)] -> [Transaction]`
+
+> behoudt Simulate, maak er Drive&Sample van oid
+> SimulateFull => Simulate
+> SimulateFull heeft de conversion functies en stallC
+> Maak van SimulateFull iets als RunCircuit
+> Fix Axi4Lite instances voor SimulateFull
+> Bouw een voorbeeld van Axi4Lite met veel documentatie
+> Hedgehog testfunctie maken gegeven SimulateFull
