@@ -291,10 +291,12 @@ SimulateFull wordt Simulate, we droppen SimulateRightward, want we kunnen Simula
 
 Hebben we deze functie nodig: `[(WA,WD,WR,RA,RD)] -> [Transaction]`
 
-> behoudt Simulate, maak er Drive&Sample van oid
-> SimulateFull => Simulate
-> SimulateFull heeft de conversion functies en stallC
-> Maak van SimulateFull iets als RunCircuit
-> Fix Axi4Lite instances voor SimulateFull
+x > behoudt Simulate, maak er Drivable van oid
+x > SimulateFull hernoemen naar Simulate
+x > Simulate heeft de conversion functies en stallC
+> Fix Axi4Lite instances voor Simulate
 > Bouw een voorbeeld van Axi4Lite met veel documentatie
-> Hedgehog testfunctie maken gegeven SimulateFull
+> Hedgehog testfunctie maken gegeven Simulate?
+
+
+De Simulate instance van Axi4Lite moet nog een stallC implementatie.
