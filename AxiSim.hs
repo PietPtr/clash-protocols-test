@@ -20,14 +20,18 @@ idleS2MChannels = S2M_Axi4Lite {
 
 idle = L.repeat idleS2MChannels
 
+stalled :: Circuit (Axi4Lite System ('AddrWidth 4) 'Width32) ()
+stalled = exposeClockResetEnable (stallTest |> axiSlave) clockGen resetGen enableGen
 
-sim = simulateRight def testCase master
+stallTest :: HiddenClockResetEnable dom =>
+  Circuit (Axi4Lite dom ('AddrWidth 4) ('Width32)) (Axi4Lite dom ('AddrWidth 4) ('Width32))
+stallTest = stallC def (was :> wds :> wrs :> ras :> rds :> Nil)
   where
-    master = exposeClockResetEnable (axiMaster @System) clockGen resetGen enableGen
-
-sim' = simulateLeft def testCaseSlave slave
-  where
-    slave = exposeClockResetEnable (axiSlave @System) clockGen resetGen enableGen
+    was = (StallWithAck, [])
+    wds = (StallWithAck, [])
+    wrs = (StallWithAck, [])
+    ras = (StallWithAck, [2,3,4])
+    rds = (StallWithAck, [2,4,5])
 
 testCaseSlave :: [M2S_Axi4Lite ('AddrWidth 4) 'Width32]
 testCaseSlave = [
@@ -37,15 +41,15 @@ testCaseSlave = [
     build False (buildra 5),
     build False noaddr,
     build False noaddr,
-    build False noaddr,
-    build False noaddr,
     build True noaddr,
     build True noaddr,
-    build False noaddr,
-    build False noaddr,
-    build False noaddr,
-    build False noaddr,
-    build False noaddr
+    build True noaddr,
+    build True noaddr,
+    build True noaddr,
+    build True noaddr,
+    build True noaddr,
+    build True noaddr,
+    build True noaddr
   ]
   where
     build rdready addr = M2S_Axi4Lite {
@@ -68,7 +72,7 @@ axiSlave :: HiddenClockResetEnable dom =>
 axiSlave = Circuit go
   where
     go (m2s, ()) = (machine m2s, ())
-    machine = mealy axiSlaveMealy (Startup 101)
+    machine = mealy axiSlaveMealy (Startup 1)
 
 data SlaveState
   = Startup Int
