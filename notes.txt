@@ -300,3 +300,29 @@ x > Simulate heeft de conversion functies en stallC
 
 
 De Simulate instance van Axi4Lite moet nog een stallC implementatie.
+
+###
+
+merge #32
+merge #25
+todo lijst voor de volgende
+documentatie
+  README updaten over al het AXI gedoe
+  -> introduce AXI-like circuit structure
+  -> show why it cannot be implemented in terms of DfLike
+  -> show why no Drivable instance can exist
+  -> show what we _can_ do instead with just a Simulate instance
+  -> loss of injectivity on the Fwd part and what that implies
+  Documentatie in code nalopen
+
+
+[ ] Apply SimulationConfig in `simulateCircuit` function, currently it just ignores it.
+[ ] Write (hedgehog) tests for the stallC implementation of Axi4-lite
+[ ] Write Simulate instance for AXI4
+
+[ ] Investigate whether something like an ExpectType can work in Simulate and not just Drivable
+[ ] Generic Hedgehog test functions for something with only a Simulate instance
+
+
+#####
+
